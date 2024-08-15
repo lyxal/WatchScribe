@@ -28,16 +28,14 @@
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
         tld = tld.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase().replace(/\//g, "");
 
-        console.log(`Hostname: ${hostname}`);
-        console.log(`TLD: ${tld}`);
-
+        // Push a regex for the full domain, and only the hostname
         regexes.push(`${hostname}\\.${tld}`);
         regexes.push(`${hostname}(?!\.${tld})`);
-        regexes.push(`${hostname}`);
         return regexes;
     }
 
     function generateForText(text) {
+        // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
         return text.toLowerCase().trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+");
     }
 
@@ -45,7 +43,9 @@
 
         let regexes = [];
 
+        // Get both selected text _and_ selected element
         const selectedText = getSelectedText();
+        // This is so that you can select a link and auto-watch both url and anchor text
         const selectedElement = window.getSelection().focusNode ? window.getSelection().focusNode.parentElement : null;
 
         if (selectedText === "") {
@@ -75,6 +75,7 @@
         list.innerHTML = "";
 
         for (let regex of regexes) {
+            // TODO: Make these sendable to chat
             const listItem = document.createElement('li');
             listItem.textContent = "!!/watch " + regex;
             list.appendChild(listItem);
