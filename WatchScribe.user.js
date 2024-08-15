@@ -36,7 +36,7 @@
 
         // Push a regex for the full domain, and only the hostname
         regexes.push(`${hostname}\\.${tld}`);
-        regexes.push(`${hostname}(?!\.${tld})`);
+        regexes.push(`${hostname}(?!\\.${tld})`);
         return regexes;
     }
 
