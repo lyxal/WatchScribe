@@ -26,7 +26,13 @@
 
         // Escape special characters
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
-        tld = tld.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase().replace(/\//g, "");
+        tld = tld.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase()
+
+        // Remove any trailing /s
+
+        while (tld.endsWith("/")) {
+            tld = tld.slice(0, -1);
+        }
 
         // Push a regex for the full domain, and only the hostname
         regexes.push(`${hostname}\\.${tld}`);
