@@ -1,8 +1,11 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.3
+// @version      0.3.1
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
+// @homepage     https://github.com/lyxal/WatchScribe
+// @updateURL    https://github.com/lyxal/WatchScribe/raw/main/WatchScribe.user.js
+// @downloadURL  https://github.com/lyxal/WatchScribe/raw/main/WatchScribe.user.js
 // @match       *://chat.stackexchange.com/transcript/*
 // @match       *://chat.meta.stackexchange.com/transcript/*
 // @match       *://chat.stackoverflow.com/transcript/*
@@ -40,16 +43,11 @@
         });
 
         if (call.status !== 200 || !call.ok) {
-            throw new Error(
-                `Failed to send message to chat. Returned error is ${call.status}`
-            );
+            toastr.error('Failed to send message to chat.');
+        } else {
+            toastr.success('Successfully sent message to chat.');
         }
     }
-
-
-
-
-
 
     function getSelectedText() {
         return window.getSelection().toString();
@@ -57,10 +55,23 @@
 
     function generateForURL(url) {
         let regexes = [];
-        let urlObj = new URL(url);
+        let usedURL = url;
+        if (!url.startsWith("http")) {
+            usedURL = "https://" + url;
+        }
+        let urlObj = new URL(usedURL);
 
-        let [hostname, ...tld] = urlObj.hostname.split('.');
+        let host = urlObj.hostname;
+
+        if (host.startsWith("www.")) {
+            host = host.slice(4);
+        }
+
+        let [hostname, ...tld] = host.split('.');
         tld = tld.join('.');
+
+
+        console.log(hostname, tld);
 
         // Escape special characters
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
@@ -104,9 +115,6 @@
             regexes = regexes.concat(generateForURL(selectedText));
         } else if (selectedElement && selectedElement.tagName === 'A') {
             console.log("Anchor detected.");
-            // Regexes for the URL
-            regexes = regexes.concat(generateForURL(selectedElement.href));
-
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
                 let text = selectedElement.innerText;
@@ -114,6 +122,10 @@
                 if (text.endsWith("]")) { text = text.slice(0, -1); }
                 regexes.push(generateForText(text));
             }
+            // Regexes for the URL
+            regexes = regexes.concat(generateForURL(selectedElement.href));
+
+
         } else { // TODO: Account for phone numbers
             console.log("Text detected.");
             regexes.push(generateForText(selectedText));
@@ -132,7 +144,10 @@
             const sendButton = document.createElement('button');
             sendButton.textContent = "Send to chat";
             sendButton.style.marginLeft = "1em";
-            sendButton.addEventListener('click', () => sendMessage(message));
+            sendButton.addEventListener('click', () => {
+                sendMessage(message)
+                sendButton.style.display = "none";
+            });
             itemHTML.appendChild(sendButton);
             listItem.appendChild(itemHTML);
             list.appendChild(listItem);
