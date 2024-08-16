@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.1
+// @version      0.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @match       *://chat.stackexchange.com/transcript/*
@@ -130,9 +130,18 @@
         // Make it so that links aren't clickable in the popup (so that they can actually be selected)
 
         const reportElement = document.querySelector(".fire-reported-post");
-        const links = reportElement.getElementsByTagName("a");
+        const links = Array.from(reportElement.querySelectorAll("a"));
+
         for (let link of links) {
-            link.style.pointerEvents = "none";
+            // Copy the link element into a new a element which is not clickable
+            const newLink = document.createElement("a");
+            newLink.textContent = "[" + link.textContent + "]";
+            newLink.href = link.href;
+            newLink.style.pointerEvents = "none";
+
+            // Italicize the link text
+            newLink.style.fontStyle = "italic";
+            link.insertAdjacentElement("afterend", newLink);
         }
     })
 })();
