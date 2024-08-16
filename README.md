@@ -21,7 +21,7 @@ Copy-paste the commands into the chat box and send to watch the regex. Only send
 
 These are goals that will be implemented over time in no particular order.
 
-- Make it so that regexes can be automatically sent from a button click (e.g. a button next to each regex saying "Send to Chat")
+- ~~Make it so that regexes can be automatically sent from a button click (e.g. a button next to each regex saying "Send to Chat")~~ [Implemented]
 - Add an option to switch between Watch/Blacklist
 - Suggest possible words/phrases to watch
 - Add phone number handling
