@@ -26,4 +26,5 @@ These are goals that will be implemented over time in no particular order.
 - Suggest possible words/phrases to watch
 - Add phone number handling
 - Utilise data from the report (e.g. know which domains have already been watched)
+- Make it so that links can be selected + hovered (will require borrowing code from FIRE)
 
