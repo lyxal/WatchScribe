@@ -109,7 +109,10 @@
 
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
-                regexes.push(generateForText(selectedElement.innerText));
+                let text = selectedElement.innerText;
+                if (text.startsWith("[")) { text = text.slice(1); }
+                if (text.endsWith("]")) { text = text.slice(0, -1); }
+                regexes.push(generateForText(text));
             }
         } else { // TODO: Account for phone numbers
             console.log("Text detected.");
