@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.2
+// @version      0.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @match       *://chat.stackexchange.com/transcript/*
@@ -13,6 +13,43 @@
 // ==/UserScript==
 
 (() => {
+    const charcoalHq = 11540;
+    async function sendMessage(message) {
+        const fkeyEl = document.querySelector('input[name="fkey"]');
+        if (!fkeyEl) {
+            alert("No fkey found!");
+            return;
+        }
+        const fkey = fkeyEl.value;
+        if (!fkey) {
+            alert("No fkey found!");
+            return;
+        }
+
+        // Borrowed from FIRE Extra Functions
+        // https://github.com/userscripters/fire-extra-functionality/blob/5e0c65f15dc993bf1d85d6c12c3416ef04501dd1/src/chat.ts#L32
+
+        const params = new FormData();
+        params.append('text', message);
+        params.append('fkey', fkey);
+
+        const url = `/chats/${charcoalHq}/messages/new`;
+        const call = await fetch(url, {
+            method: 'POST',
+            body: params
+        });
+
+        if (call.status !== 200 || !call.ok) {
+            throw new Error(
+                `Failed to send message to chat. Returned error is ${call.status}`
+            );
+        }
+    }
+
+
+
+
+
 
     function getSelectedText() {
         return window.getSelection().toString();
@@ -20,9 +57,10 @@
 
     function generateForURL(url) {
         let regexes = [];
-        let protocollessURL = url.replace(/(^\w+:|^)\/\/(www\.)?/, '');
-        let hostname = protocollessURL.split('.')[0];
-        let tld = protocollessURL.split('.').splice(1).join('.');
+        let urlObj = new URL(url);
+
+        let [hostname, ...tld] = urlObj.hostname.split('.');
+        tld = tld.join('.');
 
         // Escape special characters
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
@@ -81,9 +119,19 @@
         list.innerHTML = "";
 
         for (let regex of regexes) {
-            // TODO: Make these sendable to chat
+            const message = "!!/watch- " + regex;
             const listItem = document.createElement('li');
-            listItem.textContent = "!!/watch " + regex;
+            const itemHTML = document.createElement('div');
+            const regexHTML = document.createElement('code');
+            regexHTML.textContent = message;
+            itemHTML.appendChild(regexHTML);
+
+            const sendButton = document.createElement('button');
+            sendButton.textContent = "Send to chat";
+            sendButton.style.marginLeft = "1em";
+            sendButton.addEventListener('click', () => sendMessage(message));
+            itemHTML.appendChild(sendButton);
+            listItem.appendChild(itemHTML);
             list.appendChild(listItem);
         }
     }
