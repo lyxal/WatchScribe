@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.3.1
+// @version      0.4
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -94,6 +94,10 @@
         return text.toLowerCase().trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+");
     }
 
+    function generateForNumber(number) {
+        return `!!/watch-number- ${number}`;
+    }
+
     function generateRegexes(list) {
 
         let regexes = [];
@@ -126,7 +130,11 @@
             regexes = regexes.concat(generateForURL(selectedElement.href));
 
 
-        } else { // TODO: Account for phone numbers
+        } else if (/(?<=\D|^)\+?(?:\d[\W_]*){8,13}\d(?=\D|$)/.test(selectedText)) {
+            console.log("Phone number detected.");
+            regexes.push(generateForNumber(selectedText));
+        }
+        else { // TODO: Account for phone numbers
             console.log("Text detected.");
             regexes.push(generateForText(selectedText));
         }
@@ -134,7 +142,7 @@
         list.innerHTML = "";
 
         for (let regex of regexes) {
-            const message = "!!/watch- " + regex;
+            const message = (regex.startsWith("!!/watch-number-") ? "" : "!!/watch- ") + regex;
             const listItem = document.createElement('li');
             const itemHTML = document.createElement('div');
             const regexHTML = document.createElement('code');
