@@ -37,6 +37,7 @@ These are goals that will be implemented over time in no particular order.
 
 - ~~Make it so that regexes can be automatically sent from a button click (e.g. a button next to each regex saying "Send to Chat")~~ [Implemented]
 - Add an option to switch between Watch/Blacklist
+- Get more regex tips from other people in CHQ
 - Suggest possible words/phrases to watch
 - Add phone number handling
 - Utilise data from the report (e.g. know which domains have already been watched)
