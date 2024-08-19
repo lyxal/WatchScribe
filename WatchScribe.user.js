@@ -184,9 +184,10 @@
             <button id="watchscribe-button-%">Generate Regex</button>
             <button id="watchscribe-clear-%">Clear List</button>
             <button id="watchscribe-send-%">Send All Regexes To Chat</button>
+            <br>
             <input type="text" id="watchscribe-regex-%" placeholder="Enter text here">
-            <button id="watchscribe-add-%">Add to list</button>
-            <button id="watchscribe-send-as-is-%">Add Prefix and Send Input Now</button>
+            <button id="watchscribe-add-%">(+)</button>
+            <button id="watchscribe-send-as-is-%">Prefix and Send</button>
             <ul id="watchscribe-regexes-%"></ul>
         </div>
     `;
