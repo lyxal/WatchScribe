@@ -151,8 +151,6 @@
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
                 let text = selectedElement.innerText;
-                if (text.startsWith("[")) { text = text.slice(1); }
-                if (text.endsWith("]")) { text = text.slice(0, -1); }
                 regexes.push(generateForText(text));
             }
             // Regexes for the URL
@@ -268,6 +266,7 @@
             newLink.textContent = link.textContent;
             newLink.setAttribute("href", link.href);
             newLink.setAttribute("data-tooltip", link.href);
+            newLink.setAttribute("innerText", link.innerText);
             newLink.classList.add("watchscribe-link");
 
             // Italicize the link text
