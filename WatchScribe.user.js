@@ -154,7 +154,7 @@
                 regexes.push(generateForText(text));
             }
             // Regexes for the URL
-            regexes = generateForURL(selectedElement.getAttribute("href"));
+            regexes = regexes.concat(generateForURL(selectedElement.getAttribute("href")));
         } else {
             regexes = generateFor(selectedText);
         }
@@ -242,11 +242,13 @@
 
         addButton.addEventListener('click', () => {
             let message = regexInput.value;
+
             if (!message) {
                 alert("No message entered!");
                 return;
             }
-            createListItem(regexList, message);
+            const regexes = generateFor(message);
+            regexes.forEach(regex => createListItem(regexList, regex));
         });
 
         regexInput.addEventListener('keydown', (e) => {
