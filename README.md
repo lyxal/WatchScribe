@@ -1,21 +1,35 @@
 # WatchScribe
-A handy dandy tool to generate regexes for smokey to watch
+A handy dandy tool to generate regexes for smokey to watch.
+
+Requires [FIRE](https://github.com/Charcoal-SE/userscripts/tree/master/fire) for optimal benefit.
 
 _Very much in development._
 
 ## How to Use
 
-When in CHQ normally, selecting any text and clicking the "Generate Regexes" button will put regex(es) for watching the selected text under the info links:
+When viewing a report with FIRE, the WatchScribe widget will be at the bottom of the report:
 
-![image](https://github.com/user-attachments/assets/506f8ca6-f55d-48d9-b1db-224f52bb7720)
+![image](https://github.com/user-attachments/assets/6330fa35-231a-4d66-9a17-1f99e88e1334)
 
-When viewing a report using FIRE, the option will be at the bottom of the report:
+You can select text and click "Generate Regex" to add a watch command for that text to the regex list:
 
-![image](https://github.com/user-attachments/assets/de6235b8-89af-4958-9225-27d5cca91433)
+![image](https://github.com/user-attachments/assets/10b18e53-56d4-41c0-abe6-4aa7fba24dfa)
 
-To aid with the selection of links in text, `<a>` tags are made unclickable. This is so you can actually select them without going to the address.
+![image](https://github.com/user-attachments/assets/3314fa02-3dfd-41a1-a211-f5acbc6df99d)
 
-Copy-paste the commands into the chat box and send to watch the regex. Only send one at a time.
+You can also select any part of a link and it will create commands for the link URL and the link text (if it isn't a URL itself):
+
+![image](https://github.com/user-attachments/assets/8c23254e-b195-4cc6-b176-51c688496685)
+
+![image](https://github.com/user-attachments/assets/db6d651e-23c7-4fe9-acd9-121e5221b14d)
+
+Additionally, you can type any keyword you want and click "Add to list":
+
+![image](https://github.com/user-attachments/assets/cabb817a-6625-4559-822c-d7e9ce629527)
+
+![image](https://github.com/user-attachments/assets/c5ccf61e-c316-4381-b553-a4c18f7d6240)
+
+You can send any individual regex to chat by clicking the "Send to chat" button next to each regex. Alternatively, you can click "send all to chat" to send each one individually. This may lead to chat timeouts.
 
 ## Eventual Goals
 
@@ -26,5 +40,5 @@ These are goals that will be implemented over time in no particular order.
 - Suggest possible words/phrases to watch
 - Add phone number handling
 - Utilise data from the report (e.g. know which domains have already been watched)
-- Make it so that links can be selected + hovered (will require borrowing code from FIRE)
-
+- ~~Make it so that links can be selected + hovered (will require borrowing code from FIRE)~~ [Implemented]
+- Highlight _where_ in the post the detected reasons are.
