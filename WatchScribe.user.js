@@ -186,6 +186,7 @@
             <button id="watchscribe-send-%">Send All Regexes To Chat</button>
             <input type="text" id="watchscribe-regex-%" placeholder="Enter text here">
             <button id="watchscribe-add-%">Add to list</button>
+            <button id="watchscribe-send-as-is-%">Add Prefix and Send Input Now</button>
             <ul id="watchscribe-regexes-%"></ul>
         </div>
     `;
@@ -232,6 +233,7 @@
         const clearButton = document.getElementById(`watchscribe-clear-${widgetID}`);
         const sendButton = document.getElementById(`watchscribe-send-${widgetID}`);
         const addButton = document.getElementById(`watchscribe-add-${widgetID}`);
+        const sendAsIsButton = document.getElementById(`watchscribe-send-as-is-${widgetID}`);
         const regexInput = document.getElementById(`watchscribe-regex-${widgetID}`);
 
         clearButton.addEventListener('click', () => regexList.innerHTML = "");
@@ -249,6 +251,16 @@
             }
             const regexes = generateFor(message);
             regexes.forEach(regex => createListItem(regexList, regex));
+        });
+
+        sendAsIsButton.addEventListener('click', () => {
+            let message = regexInput.value;
+
+            if (!message) {
+                alert("No message entered!");
+                return;
+            }
+            sendMessage("!!/watch- " + message);
         });
 
         regexInput.addEventListener('keydown', (e) => {
