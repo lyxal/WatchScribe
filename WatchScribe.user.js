@@ -112,17 +112,18 @@
     }
 
     function createListItem(forList, message) {
+        const command = (!message.startsWith("!!/watch-number") ? "!!/watch- " : "") + message
         const listItem = document.createElement('li');
         const itemHTML = document.createElement('div');
         const regexHTML = document.createElement('code');
-        regexHTML.textContent = (!message.startsWith("!!/watch-number") ? "!!/watch- " : "") + message;
+        regexHTML.textContent = command;
         itemHTML.appendChild(regexHTML);
 
         const sendButton = document.createElement('button');
         sendButton.textContent = "Send to chat";
         sendButton.style.marginLeft = "1em";
         sendButton.addEventListener('click', () => {
-            sendMessage(message)
+            sendMessage(command)
             sendButton.style.display = "none";
         });
         itemHTML.appendChild(sendButton);
