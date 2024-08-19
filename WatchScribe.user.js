@@ -98,6 +98,38 @@
         return `!!/watch-number- ${number}`;
     }
 
+    function generateFor(input) {
+        // check if the selected text is a domain, exactly matching a regex
+
+        if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input)) {
+            return generateForURL(input);
+        } else if (/(?<=\D|^)\+?(?:\d[\W_]*){8,13}\d(?=\D|$)/.test(input)) {
+            return [generateForNumber(input)];
+        }
+        else {
+            return [generateForText(input)];
+        }
+    }
+
+    function createListItem(forList, message) {
+        const listItem = document.createElement('li');
+        const itemHTML = document.createElement('div');
+        const regexHTML = document.createElement('code');
+        regexHTML.textContent = (!message.startsWith("!!/watch-number") ? "!!/watch- " : "") + message;
+        itemHTML.appendChild(regexHTML);
+
+        const sendButton = document.createElement('button');
+        sendButton.textContent = "Send to chat";
+        sendButton.style.marginLeft = "1em";
+        sendButton.addEventListener('click', () => {
+            sendMessage(message)
+            sendButton.style.display = "none";
+        });
+        itemHTML.appendChild(sendButton);
+        listItem.appendChild(itemHTML);
+        forList.appendChild(listItem);
+    }
+
     function generateRegexes(list) {
 
         let regexes = [];
@@ -114,10 +146,7 @@
 
         // check if the selected text is a domain, exactly matching a regex
 
-        if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(selectedText)) {
-            console.log("Domain detected.");
-            regexes = regexes.concat(generateForURL(selectedText));
-        } else if (selectedElement && selectedElement.tagName === 'A') {
+        if (selectedElement && selectedElement.tagName === 'SPAN' && selectedElement.classList.contains('watchscribe-link')) {
             console.log("Anchor detected.");
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
@@ -127,38 +156,13 @@
                 regexes.push(generateForText(text));
             }
             // Regexes for the URL
-            regexes = regexes.concat(generateForURL(selectedElement.href));
-
-
-        } else if (/(?<=\D|^)\+?(?:\d[\W_]*){8,13}\d(?=\D|$)/.test(selectedText)) {
-            console.log("Phone number detected.");
-            regexes.push(generateForNumber(selectedText));
+            regexes = generateForURL(selectedElement.getAttribute("href"));
+        } else {
+            regexes = generateFor(selectedText);
         }
-        else { // TODO: Account for phone numbers
-            console.log("Text detected.");
-            regexes.push(generateForText(selectedText));
-        }
-
-        list.innerHTML = "";
 
         for (let regex of regexes) {
-            const message = (regex.startsWith("!!/watch-number-") ? "" : "!!/watch- ") + regex;
-            const listItem = document.createElement('li');
-            const itemHTML = document.createElement('div');
-            const regexHTML = document.createElement('code');
-            regexHTML.textContent = message;
-            itemHTML.appendChild(regexHTML);
-
-            const sendButton = document.createElement('button');
-            sendButton.textContent = "Send to chat";
-            sendButton.style.marginLeft = "1em";
-            sendButton.addEventListener('click', () => {
-                sendMessage(message)
-                sendButton.style.display = "none";
-            });
-            itemHTML.appendChild(sendButton);
-            listItem.appendChild(itemHTML);
-            list.appendChild(listItem);
+            createListItem(list, regex);
         }
     }
 
@@ -180,9 +184,38 @@
             <h3>WatchScribe</h3>
             <p>Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
             <button id="watchscribe-button-%">Generate Regex</button>
+            <button id="watchscribe-clear-%">Clear List</button>
+            <button id="watchscribe-send-%">Send All Regexes To Chat</button>
+            <input type="text" id="watchscribe-regex-%" placeholder="Enter text here">
+            <button id="watchscribe-add-%">Add to list</button>
             <ul id="watchscribe-regexes-%"></ul>
         </div>
     `;
+
+    let customCSS = `
+        <style>
+.watchscribe-link:hover::after {
+  content: attr(data-tooltip);
+  position: fixed;
+  background: #eee;
+  padding: 5px;
+  border-radius: 4px;
+  box-shadow: 0 0 10px 0 #888;
+  border: 1px solid #bbb;
+  white-space: pre-line;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 12px;
+  max-width: 70vw;
+  cursor: pointer;
+  word-wrap: break-word;
+  word-break: break-word;
+  cursor: auto;
+  z-index: 1000;
+}
+    `
+
+    document.head.insertAdjacentHTML('beforeend', customCSS);
 
     INFO_ELEMENT.insertAdjacentHTML('afterend', widgetHTML);
 
@@ -198,6 +231,29 @@
 
         const generateButton = document.getElementById(`watchscribe-button-${widgetID}`);
         const regexList = document.getElementById(`watchscribe-regexes-${widgetID}`);
+        const clearButton = document.getElementById(`watchscribe-clear-${widgetID}`);
+        const sendButton = document.getElementById(`watchscribe-send-${widgetID}`);
+        const addButton = document.getElementById(`watchscribe-add-${widgetID}`);
+        const regexInput = document.getElementById(`watchscribe-regex-${widgetID}`);
+
+        clearButton.addEventListener('click', () => regexList.innerHTML = "");
+        sendButton.addEventListener('click', () => {
+            let messages = Array.from(regexList.querySelectorAll('code')).map(el => el.textContent);
+            messages.forEach(message => sendMessage(message));
+        });
+
+        addButton.addEventListener('click', () => {
+            let message = regexInput.value;
+            if (!message) {
+                alert("No message entered!");
+                return;
+            }
+            createListItem(regexList, message);
+        });
+
+        regexInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+        });
 
         generateButton.addEventListener('click', () => generateRegexes(regexList));
 
@@ -208,14 +264,17 @@
 
         for (let link of links) {
             // Copy the link element into a new a element which is not clickable
-            const newLink = document.createElement("a");
-            newLink.textContent = "[" + link.textContent + "]";
-            newLink.href = link.href;
-            newLink.style.pointerEvents = "none";
+            const newLink = document.createElement("span");
+            newLink.textContent = link.textContent;
+            newLink.setAttribute("href", link.href);
+            newLink.setAttribute("data-tooltip", link.href);
+            newLink.classList.add("watchscribe-link");
 
             // Italicize the link text
-            newLink.style.fontStyle = "italic";
-            link.insertAdjacentElement("afterend", newLink);
+            newLink.style.fontWeight = "bold";
+            newLink.style.textDecoration = "underline";
+            newLink.style.position = "relative";
+            link.replaceWith(newLink);
         }
     })
 })();
