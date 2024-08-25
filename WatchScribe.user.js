@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.5.1
+// @version      0.6.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -86,6 +86,7 @@
         // Push a regex for the full domain, and only the hostname
         regexes.push(`${hostname}\\.${tld}`);
         regexes.push(`${hostname}(?!\\.${tld})`);
+
         return regexes;
     }
 
@@ -149,13 +150,28 @@
 
         if (selectedElement && selectedElement.tagName === 'SPAN' && selectedElement.classList.contains('watchscribe-link')) {
             console.log("Anchor detected.");
+            const url = selectedElement.getAttribute("href");
+            const text = selectedElement.innerText;
+            const textRegex = generateForText(text);
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
-                let text = selectedElement.innerText;
-                regexes.push(generateForText(text));
+                regexes.push(textRegex);
             }
             // Regexes for the URL
-            regexes = regexes.concat(generateForURL(selectedElement.getAttribute("href")));
+            regexes = regexes.concat(generateForURL(url));
+
+            // A special check: if the text, lowercased, without spaces, matches the URL,
+            // add a regex that watches the text with a negative lookahead for the URL tld
+
+            const urlifiedText = text.toLowerCase().replaceAll(" ", "");
+            const hostname = new URL(url).hostname
+            const wwwless = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+            const urlifiedHostname = wwwless.toLowerCase().replaceAll(" ", "");
+
+            const tld = new URL(url).hostname.split(".").pop().toLowerCase();
+            if (urlifiedHostname.match(urlifiedText)) {
+                regexes.push(`${textRegex}(?!\\.${tld})`);
+            }
         } else {
             regexes = generateFor(selectedText);
         }
