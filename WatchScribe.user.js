@@ -80,6 +80,15 @@
      * @returns {{reasonType: string, reason: string}[]}} The parsed report reasons
      */
     function parseReportReasons(reportItem) {
+
+        /*
+            But hang on! There's already a Metasmoke API! Why not just use that?
+            Well the thing is that the Metasmoke API doesn't appear to return the
+            positions of the reasons in the post. The FIRE report, on the other hand,
+            has the positions of the reasons in the post. Therefore, save the hassle
+            of getting an API key and just parse the FIRE report.
+        */
+
         if (!reportItem) {
             return {};
         }
