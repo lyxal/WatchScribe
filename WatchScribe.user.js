@@ -55,6 +55,54 @@
 
 
     /**
+     * Return a list of domains watched/blacklisted in a FIRE report
+     * @param {{reasonType: string, reason: string}[]} reasons The parsed reasons from a FIRE report. Use `parseReportReasons` to get this
+     * @returns {string[]} The bad links from the report
+     */
+    function getBadLinksFromReport(reasons) {
+
+        const watchOrBlacklist = reasons.filter(reason =>
+            [
+                "Potentially bad keyword in body",
+                "Blacklisted website in body",
+                "Potentially bad keyword in answer",
+                "Bad keyword in answer"
+            ].includes(reason.reasonType)
+        )
+
+        const badLinks = watchOrBlacklist.map(reason => reason.reason);
+
+    }
+
+    /**
+     * Parse the reasons for a report from a report item
+     * @param {HTMLUListElement} reportItem 
+     * @returns {{reasonType: string, reason: string}[]}} The parsed report reasons
+     */
+    function parseReportReasons(reportItem) {
+        if (!reportItem) {
+            return {};
+        }
+
+        const reportElements = reportItem.childNodes;
+        const reportReasons = Array.from(reportElements).map(el => { return { reasonType: el.firstChild.textContent, reason: el.lastChild.textContent } });
+
+        return reportReasons;
+    }
+
+    /**
+     * Get the report item for the current FIRE report
+     * @returns {HTMLElement} The report item
+     */
+    function getReportItem() {
+        const title = document.querySelector(".fire-post-title-container");
+        const tooltip = title.getAttribute("fire-tooltip");
+        const reportHTML = tooltip.slice(tooltip.indexOf("<ul"));
+        const reportElement = new DOMParser().parseFromString(reportHTML, "text/html").body.firstChild;
+        return reportElement;
+    }
+
+    /**
      * A small helper function to get the currently selected text
      * @returns {string} The selected text
      */
