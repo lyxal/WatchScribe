@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.6.0
+// @version      0.7.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -88,7 +88,19 @@
         }
 
         let [hostname, ...tld] = host.split('.');
-        tld = tld.join('\\.'); // Reconstruct the TLD, escaping the "."s
+
+        // tld will now be an array of the TLD parts, e.g. ["com", "uk", "co"]
+        // Subsequent parts of the TLD after the first need to be joined with `(?:\\.${tld})`
+        // This is because the TLD can be multiple parts, e.g. "co.uk" or "com.au"
+
+        let [mainTLD, ...subTLD] = tld;
+        // If there are sub-TLDs, join them with a dot
+        tldFull = tld.join("\\.");
+        subTLD = subTLD.reduce((acc, part) => {
+            return acc + `(?:\\.${part})`;
+        }, '')
+
+        tldDivided = "\\." + mainTLD + (subTLD ? `(?:${subTLD})` : "");
 
         // Escape special regex characters in the hostname and TLD
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
@@ -102,10 +114,12 @@
         }
 
         // Push a regex for the full domain, escaping the "."
-        regexes.push(`${hostname}\\.${tld}`);
+        regexes.push(`${hostname}\\.${tldFull}`);
+        regexes.push(`${hostname}\\.${tldDivided}`);
 
         // Push the hostname without the TLD, using a negative lookahead
-        regexes.push(`${hostname}(?!\\.${tld})`);
+        regexes.push(`${hostname}(?!\\.${tldFull})`);
+        regexes.push(`${hostname}(?!\\.${tldDivided})`);
 
         return regexes;
     }
