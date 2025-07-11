@@ -71,6 +71,7 @@
         )
 
         const badLinks = watchOrBlacklist.map(reason => reason.reason);
+        return badLinks;
 
     }
 
