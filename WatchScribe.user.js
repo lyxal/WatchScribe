@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.7.2
+// @version      0.7.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -124,6 +124,9 @@
         // Push the hostname without the TLD, using a negative lookahead
         regexes.push(`${hostname}(?!\\.${tldFull})`);
         regexes.push(`${hostname}(?!\\.${tldDivided})`);
+
+        // Uniquify regexes because it may have duplicates
+        regexes = [...new Set(regexes)];
 
         return regexes;
     }
