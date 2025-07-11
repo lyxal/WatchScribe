@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.7.1
+// @version      0.7.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -97,21 +97,24 @@
         // If there are sub-TLDs, join them with a dot
         tldFull = tld.join("\\.");
         subTLD = subTLD.reduce((acc, part) => {
+            part = part.replace(/([()[{*+.$^|?\\])/g, '\\$1').toLowerCase();
             return acc + `(?:\\.${part})`;
         }, '')
 
-        tldDivided = "\\." + mainTLD + (subTLD ? `(?:${subTLD})` : "");
+        tldDivided = mainTLD + (subTLD ? subTLD : "");
 
         // Escape special regex characters in the hostname and TLDs
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
-        tldFull = tldFull.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
-        tldDivided = tldDivided.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
-
+        tldFull = tldFull.replace(/([()[{*+$^|?])/g, '\\$1').toLowerCase();
         // Remove any trailing /s because sometimes URLs have those
         // and that's annoying. We don't want to watch those.
 
-        while (tld.endsWith("/")) { // Basically a trim function at home
-            tld = tld.slice(0, -1);
+        while (tldFull.endsWith("/")) { // Basically a trim function at home
+            tldFull = tldFull.slice(0, -1);
+        }
+
+        while (tldDivided.endsWith("/")) { // Same here
+            tldDivided = tldDivided.slice(0, -1);
         }
 
         // Push a regex for the full domain, escaping the "."
