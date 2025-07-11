@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.7.0
+// @version      0.7.1
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -102,9 +102,10 @@
 
         tldDivided = "\\." + mainTLD + (subTLD ? `(?:${subTLD})` : "");
 
-        // Escape special regex characters in the hostname and TLD
+        // Escape special regex characters in the hostname and TLDs
         hostname = hostname.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
-        tld = tld.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase()
+        tldFull = tldFull.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
+        tldDivided = tldDivided.replace(/([()[{*+.$^\\|?])/g, '\\$1').toLowerCase();
 
         // Remove any trailing /s because sometimes URLs have those
         // and that's annoying. We don't want to watch those.
