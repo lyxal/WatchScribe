@@ -98,7 +98,7 @@
         tldFull = tld.join("\\.");
         subTLD = subTLD.reduce((acc, part) => {
             part = part.replace(/([()[{*+.$^|?\\])/g, '\\$1').toLowerCase();
-            return acc + `(?:\\.${part})`;
+            return acc + `(?:\\.${part})?`;
         }, '')
 
         tldDivided = mainTLD + (subTLD ? subTLD : "");
