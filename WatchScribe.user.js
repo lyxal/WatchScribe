@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.7.3
+// @version      0.7.4
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -141,15 +141,164 @@
         return text.toLowerCase().trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+");
     }
 
+    // Homoglpyh to number mapping, taken directly from the SmokeDetector codebase
+
+    const equivalents = {
+        "0": [0x4f, 0x6f, 0xd8, 0x39f, 0x3bf, 0x3c3, 0x41e, 0x43e, 0x555, 0x585, 0x5e1, 0x647, 0x665, 0x6be, 0x6c1, 0x6d5,
+            0x6f5, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb20, 0xb66, 0xbe6, 0xc02, 0xc66, 0xc82, 0xce6, 0xd02, 0xd20,
+            0xd66, 0xd82, 0xe50, 0xed0, 0x101d, 0x1040, 0x10ff, 0x12d0, 0x1d0f, 0x1d11, 0x2134, 0x2c9e, 0x2c9f,
+            0x2d54, 0x3007, 0xa4f3, 0xab3d, 0xfba6, 0xfba7, 0xfba8, 0xfba9, 0xfbaa, 0xfbab, 0xfbac, 0xfbad, 0xfee9,
+            0xfeea, 0xfeeb, 0xfeec, 0xff10, 0xff2f, 0xff4f, 0x10292, 0x102ab, 0x10404, 0x1042c, 0x104c2, 0x104ea,
+            0x10516, 0x114d0, 0x118b5, 0x118c8, 0x118d7, 0x118e0, 0x1d40e, 0x1d428, 0x1d442, 0x1d45c, 0x1d476,
+            0x1d490, 0x1d4aa, 0x1d4de, 0x1d4f8, 0x1d512, 0x1d52c, 0x1d546, 0x1d560, 0x1d57a, 0x1d594, 0x1d5ae,
+            0x1d5c8, 0x1d5e2, 0x1d5fc, 0x1d616, 0x1d630, 0x1d64a, 0x1d664, 0x1d67e, 0x1d698, 0x1d6b6, 0x1d6d0,
+            0x1d6d4, 0x1d6f0, 0x1d70a, 0x1d70e, 0x1d72a, 0x1d744, 0x1d748, 0x1d764, 0x1d77e, 0x1d782, 0x1d79e,
+            0x1d7b8, 0x1d7bc, 0x1d7ce, 0x1d7d8, 0x1d7e2, 0x1d7ec, 0x1d7f6, 0x1ee24, 0x1ee64, 0x1ee84, 0x1fbf0,
+            0x2298, 0x24ea, 0x24ff, 0x1f100, 0x1f10b, 0x1f10c, 0x104a0, 0x110f0, 0x11136, 0x1e950, 0x2205],
+        "1": [0x49, 0x6c, 0x7c, 0x196, 0x1c0, 0x399, 0x406, 0x4c0, 0x5c0, 0x5d5, 0x5df, 0x627, 0x661, 0x6f1, 0x7ca,
+            0x16c1, 0x2110, 0x2111, 0x2113, 0x2160, 0x217c, 0x2223, 0x23fd, 0x2c92, 0x2d4f, 0xa4f2, 0xfe8d, 0xfe8e,
+            0xff11, 0xff29, 0xff4c, 0xffe8, 0x1028a, 0x10309, 0x10320, 0x16f28, 0x1d408, 0x1d425, 0x1d43c, 0x1d459,
+            0x1d470, 0x1d48d, 0x1d4c1, 0x1d4d8, 0x1d4f5, 0x1d529, 0x1d540, 0x1d55d, 0x1d574, 0x1d591, 0x1d5a8,
+            0x1d5c5, 0x1d5dc, 0x1d5f9, 0x1d610, 0x1d62d, 0x1d644, 0x1d661, 0x1d678, 0x1d695, 0x1d6b0, 0x1d6ea,
+            0x1d724, 0x1d75e, 0x1d798, 0x1d7cf, 0x1d7d9, 0x1d7e3, 0x1d7ed, 0x1d7f7, 0x1e8c7, 0x1ee00, 0x1ee80,
+            0x1fbf1, 0xb9, 0x215f, 0x2160, 0x2170, 0x217c, 0x1e951, 0x1e952],
+        "2": [0x1a7, 0x3e8, 0x3e9, 0x14bf, 0xa644, 0xa6ef, 0xa75a, 0xff12, 0x1d7d0, 0x1d7da, 0x1d7e4, 0x1d7ee, 0x1d7f8,
+            0x1fbf2, 0x577, 0xb2],
+        "3": [0x1b7, 0x21c, 0x417, 0x4e0, 0xae9, 0x15f1, 0x2ccc, 0xa76a, 0xa7ab, 0xff13, 0x118ca, 0x16f3b, 0x1d206, 0x1d7d1,
+            0x1d7db, 0x1d7e5, 0x1d7ef, 0x1d7f9, 0x1fbf3, 0x1d08, 0x1d1f, 0x1d23, 0x1d32, 0x1d94, 0x1d9a, 0x1dbe,
+            0x4de, 0x4df, 0x4e0, 0x4e1, 0x4ec, 0x4ed, 0x498, 0x499, 0x417, 0x3f6, 0xb3],
+        "4": [0xaeb, 0x13ce, 0x96b, 0xff14, 0x118af, 0x1d7d2, 0x1d7dc, 0x1d7e6, 0x1d7f0, 0x1d7fa, 0x1fbf4, 0xa78d, 0x4b6,
+            0x4b7, 0x4cb, 0x4cc],
+        "5": [0x1bc, 0xff15, 0x118bb, 0x1d7d3, 0x1d7dd, 0x1d7e7, 0x1d7f1, 0x1d7fb, 0x1fbf5, 0x405, 'S'],
+        "6": [0x3ec, 0x3ed, 0x431, 0x13ee, 0x2cd2, 0xff16, 0x118d5, 0x1d7d4, 0x1d7de, 0x1d7e8, 0x1d7f2, 0x1d7fc, 0x1fbf6],
+        "7": [0xff17, 0x104d2, 0x118c6, 0x1d212, 0x1d7d5, 0x1d7df, 0x1d7e9, 0x1d7f3, 0x1d7fd, 0x1fbf7],
+        "8": [0x222, 0x223, 0x9ea, 0xa6a, 0xb03, 0x0b6b, 0xff18, 0x1031a, 0x1d7d6, 0x1d7e0, 0x1d7ea, 0x1d7f4, 0x1d7fe,
+            0x1e8cb, 0x1fbf8],
+        "9": [0x9ed, 0xa67, 0xaed, 0xb68, 0xd6d, 0x1564, 0x2cca, 0xa76e, 0xff19, 0x118ac, 0x118cc, 0x118d6, 0x1d7d7,
+            0x1d7e1, 0x1d7eb, 0x1d7f5, 0x1d7ff, 0x1fbf9, 0x1113d],
+        "03": [0x2189],
+        "11": [0x2161, 0x2171],
+        "12": [0xbd],
+        "13": [0x2153],
+        "14": [0xbc],
+        "15": [0x2155],
+        "16": [0x2159],
+        "17": [0x2150],
+        "18": [0x215b],
+        "19": [0x2151],
+        "23": [0x2154],
+        "25": [0x2156],
+        "34": [0xbe],
+        "35": [0x2157],
+        "38": [0x215c],
+        "45": [0x2158],
+        "56": [0x215a],
+        "58": [0x215d],
+        "78": [0x215e],
+        "110": [0x2152],
+        "111": [0x2162, 0x2172],
+    };
+
+    // (number_start, number_end, number_increment, code_point_start, code_point_increment)
+    const sequences = [
+        [1, 20, 1, 0x2460, 1],
+        [21, 35, 1, 0x3251, 1],
+        [36, 50, 1, 0x32B1, 1],
+        [1, 10, 1, 0x2780, 1],
+        [1, 20, 1, 0x2474, 1],
+        [1, 20, 1, 0x2488, 1],
+        [11, 20, 1, 0x24EB, 1],
+        [1, 10, 1, 0x24F5, 1],
+        [10, 80, 10, 0x3248, 1],
+        [1, 10, 1, 0x3280, 1],
+        [0, 9, 1, 0x2070, 1],
+        [0, 9, 1, 0x2080, 1],
+        [1, 10, 1, 0x2776, 1],
+        [1, 10, 1, 0x278A, 1],
+        [0, 9, 1, 0x1F101, 1],
+    ];
+
+    const translateTable = {};
+
+    for (const into of Object.keys(equivalents)) {
+        const from = equivalents[into];
+        for (const codePoint of from) {
+            translateTable[codePoint] = into;
+        }
+    }
+
+    for (const [start, end, increment, codePointStart, codePointIncrement] of sequences) {
+        for (let i = start; i <= end; i += increment) {
+            const codePoint = codePointStart + (i - start) * codePointIncrement;
+            translateTable[codePoint] = i.toString();
+        }
+    }
+
     /**
-     * Generate a _command_ for a phone number. Phone number watching uses
+     * Normalises a number by converting it to a string and looking it up in the translation table
+     * @param {string} number 
+     * @returns {string} The normalised number as a string
+     */
+    function normaliseNumber(number) {
+        // Convert the number to a string
+        const str = number.toString();
+
+        // If the string is empty, return it as is
+        if (str === "") {
+            return str;
+        }
+
+        // Create a new string to hold the normalised number
+        let normalised = "";
+
+        // Iterate over each character in the string
+        for (const char of str) {
+            // Get the code point of the character
+            const codePoint = char.codePointAt(0);
+
+            // If the code point is in the translation table, append the corresponding value
+            if (codePoint in translateTable) {
+                normalised += translateTable[codePoint];
+            } else {
+                normalised += char; // If not found, keep the original character
+            }
+        }
+
+        return normalised;
+    }
+
+
+    /**
+     * Generate a list of possible commands for a phone number. 
+     * Phone number watching uses
      * a different checking format than regexes.
      * @param {string} number The phone number to generate a command for
-     * @returns {string} The command for the phone number
+     * @returns {string[]} Possible commands for the phone number
      */
     function generateForNumber(number) {
-        // TODO: Glean more information on how phone number watching works from the fine folks in Charcoal HQ
-        return `!!/watch-number- ${number}`;
+        const normalised = normaliseNumber(number);
+        const justNumbers = normalised.replace(/[^\d]/g, ""); // Remove all non-digit characters
+
+        const regexes = [];
+
+        if (justNumbers.length == 10) {
+            // 10 digits, so add an option for it to be a non-american number
+            regexes.push(`!!/watch-number ${justNumbers} (?#NO NorAm)`);
+            // As well as the normal 10 digit number
+            regexes.push(`!!/watch-number +1-${justNumbers} (?#IS NorAm)`);
+        }
+
+        if (justNumbers.startsWith("0") && justNumbers.length == 11) {
+            // 11 digits, starting with 0, so add an option for it to be
+            // a non-american number
+            regexes.push(`!!/watch-number ${justNumbers.slice(1)} (?#NO NorAm)`);
+        }
+
+        regexes.push(`!!/watch-number ${justNumbers}`);
+
+
+        return regexes;
+
     }
 
     /**
@@ -159,13 +308,17 @@
      * @returns {string[]} An array of regexes for the input
      */
     function generateFor(input) {
+        const numberedInput = input.replace(/[()\[\]{}\- ]/g, "");
         // Check whether the input is something that looks like a URL
         if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input)) {
             return generateForURL(input);
         }
         // Perhaps it's a phone number?
-        else if (/(?<=\D|^)\+?(?:\d[\W_]*){8,13}\d(?=\D|$)/.test(input)) {
-            return [generateForNumber(input)]; // Wrapped in a list for consistency with URL generation
+        // Determined as 50% or more numerical characters
+        // as defined as being in \p{Number} in Unicode.
+        // after having removed brackets, dashes, and spaces.
+        else if ([...numberedInput].filter(char => /\p{Number}/u.test(char)).length >= [...numberedInput].length / 2) {
+            return generateForNumber(input); // Wrapped in a list for consistency with URL generation
         }
         // Otherwise, it's normal text
         else {
