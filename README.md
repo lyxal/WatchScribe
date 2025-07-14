@@ -14,27 +14,45 @@ to operate.
 
 When viewing a report with FIRE, the WatchScribe widget will be at the bottom of the report:
 
-![image](https://github.com/user-attachments/assets/6330fa35-231a-4d66-9a17-1f99e88e1334)
+<img width="1371" height="877" alt="image" src="https://github.com/user-attachments/assets/bc52dfba-f2bb-45d3-87eb-e70fb50c694a" />
 
 You can select text and click "Generate Regex" to add a watch command for that text to the regex list:
 
-![image](https://github.com/user-attachments/assets/10b18e53-56d4-41c0-abe6-4aa7fba24dfa)
+<img width="1377" height="877" alt="image" src="https://github.com/user-attachments/assets/cca389fa-4195-4efa-b85d-460f0d4f70c7" />
 
-![image](https://github.com/user-attachments/assets/3314fa02-3dfd-41a1-a211-f5acbc6df99d)
+<img width="1155" height="80" alt="image" src="https://github.com/user-attachments/assets/cfc4fa56-690a-436e-802f-bd4cc673f0e8" />
+
 
 You can also select any part of a link and it will create commands for the link URL and the link text (if it isn't a URL itself):
 
-![image](https://github.com/user-attachments/assets/8c23254e-b195-4cc6-b176-51c688496685)
+<img width="1380" height="946" alt="image" src="https://github.com/user-attachments/assets/ab064297-6eea-4aae-99e4-ac36f542ae14" />
 
-![image](https://github.com/user-attachments/assets/db6d651e-23c7-4fe9-acd9-121e5221b14d)
+
+<img width="1164" height="214" alt="image" src="https://github.com/user-attachments/assets/1344e2a7-2256-495c-91b9-7fb27804c4ff" />
+
 
 Additionally, you can type any keyword you want and click "Add to list":
 
-![image](https://github.com/user-attachments/assets/cabb817a-6625-4559-822c-d7e9ce629527)
+<img width="1372" height="1146" alt="image" src="https://github.com/user-attachments/assets/e03a7a7e-5ccc-4b37-9d7a-97d29040e748" />
 
-![image](https://github.com/user-attachments/assets/c5ccf61e-c316-4381-b553-a4c18f7d6240)
+<img width="1152" height="66" alt="image" src="https://github.com/user-attachments/assets/199965fb-7906-41d0-85bf-ccdef33ceab0" />
 
 You can send any individual regex to chat by clicking the "Send to chat" button next to each regex. Alternatively, you can click "send all to chat" to send each one individually. This may lead to chat timeouts.
+
+Furthermore, you can select a phone number to get corresponding number watching/blacklisting commands:
+
+<img width="1378" height="879" alt="image" src="https://github.com/user-attachments/assets/ddff09b5-8982-4da9-bed1-f3ce7bdbb960" />
+
+<img width="1169" height="220" alt="image" src="https://github.com/user-attachments/assets/09a43f7d-ce31-4d2d-94d8-c196a0a71a59" />
+
+You can also make commands generate as their blacklist counterparts by switching to blacklist mode:
+
+<img width="1372" height="976" alt="image" src="https://github.com/user-attachments/assets/0de35c8c-46d8-47f5-947b-3bc89fdf8ad9" />
+
+You can also silence or unsilence commands with the silent switch:
+
+<img width="1371" height="967" alt="image" src="https://github.com/user-attachments/assets/c802061f-6ae5-40ea-93b2-fd4ca6c5460b" />
+
 
 ## Eventual Goals
 
