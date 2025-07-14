@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.8.1
+// @version      0.8.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -139,7 +139,7 @@
             if (commandType === COMMAND_TYPES.blacklist) {
                 commands.push(`!!/blacklist-url- ${regex}`);
             } else {
-                commands.push(`!!/watch ${regex}`);
+                commands.push(`!!/watch- ${regex}`);
             }
         }
 
@@ -514,6 +514,7 @@ z-index: 1000;
         const widgetID = Math.random().toString(36).substring(7)
         const reportedPostDiv = document.querySelector('.fire-reported-post');
         reportedPostDiv.insertAdjacentHTML('afterend', widgetHTML.replace(/%/g, widgetID));
+        commandType = COMMAND_TYPES.watch; // Reset the command type to watch
 
         // Get the various components of the widget
         const generateButton = document.getElementById(`watchscribe-button-${widgetID}`);
