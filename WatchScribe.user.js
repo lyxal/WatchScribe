@@ -304,10 +304,21 @@
             regexes.push(`!!/${commandType}-number${silent ? "-" : ""} +1-${justNumbers} (?#IS NorAm)`);
         }
 
+        // 11 digit numbers starting with a 0 can be written
+        // without the 0, making it look like it could be a NANP
+        // number. Therefore, add an option for the short version
+        // but add the context back via No NorAm.
         if (justNumbers.startsWith("0") && justNumbers.length == 11) {
-            // 11 digits, starting with 0, so add an option for it to be
-            // a non-american number
             regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(1)} (?#NO NorAm)`);
+        }
+
+        // 12 digit numbers starting with 91 have the same problem.
+        // This is what happens when convenience is prioritised over consistency.
+        // Not that convenience is a bad thing to design around, but come on.
+        // consistency please.
+
+        if (justNumbers.startsWith("91") && justNumbers.length == 12) {
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(2)} (?#NO NorAm)`);
         }
 
         regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers}`);
@@ -351,31 +362,42 @@
      * @param {string} message The message to append
      */
     function createListItem(forList, message) {
+        // Add prefix if needed
+        const command = (!message.startsWith(`!!/${commandType}`)
+            ? `!!/${commandType}${silent ? "-" : ""} `
+            : "") + message;
 
-        // If the message isn't already a watch-number command, prefix it with "!!/watch-"
-        const command = (!message.startsWith(`!!/${commandType}`) ? `!!/${commandType}${silent ? "-" : ""} ` : "") + message
-
-        // Create the list item and the code elements
+        // Create list item wrapper
         const listItem = document.createElement('li');
+        listItem.className = 'ws-list-item';
+
+        // Inner container
         const itemHTML = document.createElement('div');
+        itemHTML.className = 'ws-list-content';
+
+        // Regex display
         const regexHTML = document.createElement('code');
         regexHTML.textContent = command;
-        itemHTML.appendChild(regexHTML);
+        regexHTML.className = 'ws-code';
 
-        // Create the send button
+        // Send button
         const sendButton = document.createElement('button');
         sendButton.textContent = "Send to chat";
-        sendButton.style.marginLeft = "1em";
+        sendButton.className = 'ws-send-button';
+        console.log("Creating send button for command:", command);
+        console.log("Send button element:", sendButton.className);
         sendButton.addEventListener('click', () => {
-            sendMessage(command)
+            sendMessage(command);
             sendButton.style.display = "none";
         });
 
-        // Append the code element and the send button to the list item
+        // Assemble
+        itemHTML.appendChild(regexHTML);
         itemHTML.appendChild(sendButton);
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
     }
+
 
     /**
      * Generate all regexes for selected text, and render them as list items
@@ -452,69 +474,72 @@
 
 
     let widgetHTML = `
-    <div id="watchscribe-widget-%" style="padding-top: 2em; margin-left: 1em; z-index: 300">
-        <div id="watchscribe-header-%" style="font-weight: bold; font-size: 1.2em; margin-bottom: 0.5em; display: flex; align-items: center; justify-content: space-between;">
-            <h3 style="margin: 0;" id="watchscribe-title-%">WatchScribe</h3>
+<div id="watchscribe-widget-%" style="padding: 1em; margin: 1em; background: #fdfdfd; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-family: sans-serif; z-index: 300;">
+  <div id="watchscribe-header-%" style="font-weight: bold; font-size: 1.2em; margin-bottom: 1em; display: flex; align-items: center; justify-content: space-between;">
+    <h3 style="margin: 0;" id="watchscribe-title-%">WatchScribe</h3>
 
-            <div class="toggle-container-%" style="display: flex; align-items: center; gap: 10px;">
-                <span id="labelOff-%" class="toggle-label active">Watch</span>
-
-                <div class="toggle-switch">
-                    <div class="toggle-slider" id="toggleBtn-%"></div>
-                </div>
-
-                <span id="labelOn-%" class="toggle-label">Blacklist</span>
-            </div>
-        </div>
-
-        <div id="watchscribe-toggle-silent-%">
-                <label class="toggle-container">
-                    <input type="checkbox" id="watchscribe-silent-%" checked>
-                    <span class="toggle-slider"></span>
-                    <span class="toggle-label">Silent</span>
-                </label>
-        </div>
-
-        <p>Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
-        <button id="watchscribe-button-%">Generate Regex</button>
-        <button id="watchscribe-clear-%">Clear List</button>
-        <button id="watchscribe-send-%">Send All Regexes To Chat</button>
-        <br>
-        <input type="text" id="watchscribe-regex-%" placeholder="Enter text here">
-        <button id="watchscribe-add-%">(+)</button>
-        <button id="watchscribe-send-as-is-%">Prefix and Send</button>
-        <ul id="watchscribe-regexes-%"></ul>
+    <div class="toggle-container-%" style="display: flex; align-items: center; gap: 8px;">
+      <span id="labelOff-%" class="toggle-label active">Watch</span>
+      <div class="toggle-switch">
+        <div class="toggle-slider" id="toggleBtn-%"></div>
+      </div>
+      <span id="labelOn-%" class="toggle-label">Blacklist</span>
     </div>
+  </div>
+
+  <div id="watchscribe-toggle-silent-%" style="margin-bottom: 1em;">
+    <label class="toggle-container">
+      <input type="checkbox" id="watchscribe-silent-%" checked>
+      <span class="checkbox-slider"></span>
+      <span class="toggle-label">Silent</span>
+    </label>
+  </div>
+
+  <p style="margin-top: 0.5em;">Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
+
+  <div style="margin-bottom: 1em;">
+    <button id="watchscribe-button-%" class="ws-button">Generate Regex</button>
+    <button id="watchscribe-clear-%" class="ws-button">Clear List</button>
+    <button id="watchscribe-send-%" class="ws-button">Send All Regexes To Chat</button>
+  </div>
+
+  <div style="display: flex; gap: 0.5em; margin-bottom: 1em;">
+    <input type="text" id="watchscribe-regex-%" placeholder="Enter text here" style="flex-grow: 1; padding: 0.4em; border-radius: 4px; border: 1px solid #ccc;">
+    <button id="watchscribe-add-%" class="ws-button">(+)</button>
+    <button id="watchscribe-send-as-is-%" class="ws-button">Prefix + Send</button>
+  </div>
+
+  <ul id="watchscribe-regexes-%" style="padding-left: 1.2em; list-style-type: disc;"></ul>
+</div>
 `;
 
     let customCSS = `
     <style>
+/* Tooltip styling */
 .watchscribe-link:hover::after {
-content: attr(data-tooltip);
-position: fixed;
-background: #eee;
-padding: 5px;
-border-radius: 4px;
-box-shadow: 0 0 10px 0 #888;
-border: 1px solid #bbb;
-white-space: pre-line;
-font-weight: normal;
-font-style: normal;
-font-size: 12px;
-max-width: 70vw;
-cursor: pointer;
-word-wrap: break-word;
-word-break: break-word;
-cursor: auto;
-z-index: 1000;
+  content: attr(data-tooltip);
+  position: fixed;
+  background: #eee;
+  padding: 5px;
+  border-radius: 4px;
+  box-shadow: 0 0 10px 0 #888;
+  border: 1px solid #bbb;
+  white-space: pre-line;
+  font-size: 12px;
+  max-width: 70vw;
+  word-wrap: break-word;
+  z-index: 1000;
 }
+
+/* Toggle layout */
 .toggle-container {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 0.9em;
-  font-weight: normal;
 }
+
+/* Label styles */
 .toggle-label {
   transition: font-weight 0.3s ease, color 0.3s ease;
   font-weight: normal;
@@ -523,10 +548,10 @@ z-index: 1000;
 
 .toggle-label.active {
   font-weight: bold;
-  color: black;
+  color: #333;
 }
 
-/* Toggle Switch Styling */
+/* Custom toggle switch */
 .toggle-switch {
   width: 50px;
   height: 24px;
@@ -534,6 +559,7 @@ z-index: 1000;
   border-radius: 12px;
   position: relative;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .toggle-slider {
@@ -547,11 +573,107 @@ z-index: 1000;
   transition: transform 0.3s ease;
 }
 
-/* When toggled */
 .toggle-slider.on {
   transform: translateX(26px);
 }
 
+/* Silent toggle checkbox style */
+.toggle-container input[type="checkbox"] {
+  display: none;
+}
+
+.checkbox-slider {
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+  background-color: #ccc;
+  border-radius: 10px;
+  position: relative;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.checkbox-slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.toggle-container input[type="checkbox"]:checked + .checkbox-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-container input[type="checkbox"]:checked + .checkbox-slider {
+  background-color: #4caf50;
+}
+
+/* Button styling */
+.ws-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.ws-button:hover {
+  background-color: #0056b3;
+}
+
+.ws-list-item {
+  margin-bottom: 0.5em;
+  list-style-type: none;
+}
+
+.ws-list-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  padding: 0.5em 0.75em;
+  border-radius: 6px;
+  font-size: 0.9em;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+}
+
+.ws-code {
+  font-family: monospace;
+  background: #e8e8e8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #333;
+  word-break: break-word;
+  max-width: 70%;
+  overflow-wrap: anywhere;
+}
+
+.ws-send-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+  margin-left: 1em;
+  transition: background-color 0.3s ease;
+}
+
+.ws-send-button:hover {
+  background-color: #218838;
+}
+
+</style>
 `
 
     // Inject the CSS
@@ -627,7 +749,7 @@ z-index: 1000;
                 alert("No message entered!");
                 return;
             }
-            sendMessage("!!/watch- " + message);
+            sendMessage(`!!/${commandType}${silent ? "-" : ""} ${message}`);
         });
 
         regexInput.addEventListener('keydown', (e) => {
