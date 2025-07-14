@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.9.0
+// @version      0.9.1
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -489,7 +489,7 @@
     <label class="toggle-container">
       <input type="checkbox" id="watchscribe-silent-%" checked>
       <span class="checkbox-slider"></span>
-      <span class="toggle-label">Silent</span>
+      <span class="toggle-label" id="labelSilent-%">Silent</span>
     </label>
   </div>
 
@@ -699,6 +699,7 @@
         const title = document.getElementById(`watchscribe-title-${widgetID}`);
         const toggleBtn = document.getElementById(`toggleBtn-${widgetID}`);
         const silentToggle = document.getElementById(`watchscribe-silent-${widgetID}`);
+        const silentLabel = document.getElementById(`labelSilent-${widgetID}`);
 
 
         toggleBtn.parentElement.addEventListener('click', () => {
@@ -716,8 +717,10 @@
             silent = silentToggle.checked;
             if (silent) {
                 toggleBtn.classList.add('silent');
+                silentLabel.textContent = "Silent";
             } else {
                 toggleBtn.classList.remove('silent');
+                silentLabel.textContent = "No hyphen";
             }
         });
 
