@@ -65,4 +65,4 @@ These are goals that will be implemented over time in no particular order.
 - Utilise data from the report (e.g. know which domains have already been watched)
 - ~~Make it so that links can be selected + hovered (will require borrowing code from FIRE)~~ [Implemented]
 - Highlight _where_ in the post the detected reasons are.
-- Allow for a setting to toggle whether commands are silent (ending with `-`) or not (ending with nothing).
+- ~~Allow for a setting to toggle whether commands are silent (ending with `-`) or not (ending with nothing)~~ [Implemented].
