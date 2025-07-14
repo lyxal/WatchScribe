@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.8.2
+// @version      0.8.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -23,6 +23,7 @@
     };
 
     var commandType = COMMAND_TYPES.watch;
+    var silent = true;
 
     /**
      * Send a message to chat
@@ -137,9 +138,9 @@
 
         for (let regex of unCommandedregexes) {
             if (commandType === COMMAND_TYPES.blacklist) {
-                commands.push(`!!/blacklist-url- ${regex}`);
+                commands.push(`!!/blacklist-url${silent ? "-" : ""} ${regex}`);
             } else {
-                commands.push(`!!/watch- ${regex}`);
+                commands.push(`!!/watch${silent ? "-" : ""} ${regex}`);
             }
         }
 
@@ -298,18 +299,18 @@
 
         if (justNumbers.length == 10) {
             // 10 digits, so add an option for it to be a non-american number
-            regexes.push(`!!/${commandType}-number- ${justNumbers} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers} (?#NO NorAm)`);
             // As well as the normal 10 digit number
-            regexes.push(`!!/${commandType}-number- +1-${justNumbers} (?#IS NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} +1-${justNumbers} (?#IS NorAm)`);
         }
 
         if (justNumbers.startsWith("0") && justNumbers.length == 11) {
             // 11 digits, starting with 0, so add an option for it to be
             // a non-american number
-            regexes.push(`!!/${commandType}-number- ${justNumbers.slice(1)} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(1)} (?#NO NorAm)`);
         }
 
-        regexes.push(`!!/${commandType}-number- ${justNumbers}`);
+        regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers}`);
 
 
         return regexes;
@@ -338,9 +339,9 @@
         // Otherwise, it's normal text
         else {
             if (commandType === COMMAND_TYPES.blacklist) {
-                return [`!!/blacklist-keyword- ${generateForText(input)}`];
+                return [`!!/blacklist-keyword${silent ? "-" : ""} ${generateForText(input)}`];
             }
-            return [`!!/watch- ${generateForText(input)}`];
+            return [`!!/watch${silent ? "-" : ""} ${generateForText(input)}`];
         }
     }
 
@@ -352,7 +353,7 @@
     function createListItem(forList, message) {
 
         // If the message isn't already a watch-number command, prefix it with "!!/watch-"
-        const command = (!message.startsWith(`!!/${commandType}`) ? `!!/${commandType}- ` : "") + message
+        const command = (!message.startsWith(`!!/${commandType}`) ? `!!/${commandType}${silent ? "-" : ""} ` : "") + message
 
         // Create the list item and the code elements
         const listItem = document.createElement('li');
@@ -455,11 +456,23 @@
         <div id="watchscribe-header-%" style="font-weight: bold; font-size: 1.2em; margin-bottom: 0.5em; display: flex; align-items: center; justify-content: space-between;">
             <h3 style="margin: 0;" id="watchscribe-title-%">WatchScribe</h3>
 
-            <div class="toggle-container-%">
-                <span id="labelOff-%" style="font-weight: bold;">Watch</span>
-                <button id="toggleBtn-%">&lt;--</button>
-                <span id="labelOn-%" style="font-weight: normal;">Blacklist</span>
+            <div class="toggle-container-%" style="display: flex; align-items: center; gap: 10px;">
+                <span id="labelOff-%" class="toggle-label active">Watch</span>
+
+                <div class="toggle-switch">
+                    <div class="toggle-slider" id="toggleBtn-%"></div>
+                </div>
+
+                <span id="labelOn-%" class="toggle-label">Blacklist</span>
             </div>
+        </div>
+
+        <div id="watchscribe-toggle-silent-%">
+                <label class="toggle-container">
+                    <input type="checkbox" id="watchscribe-silent-%" checked>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Silent</span>
+                </label>
         </div>
 
         <p>Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
@@ -502,6 +515,43 @@ z-index: 1000;
   font-size: 0.9em;
   font-weight: normal;
 }
+.toggle-label {
+  transition: font-weight 0.3s ease, color 0.3s ease;
+  font-weight: normal;
+  color: gray;
+}
+
+.toggle-label.active {
+  font-weight: bold;
+  color: black;
+}
+
+/* Toggle Switch Styling */
+.toggle-switch {
+  width: 50px;
+  height: 24px;
+  background-color: #ccc;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+}
+
+.toggle-slider {
+  width: 22px;
+  height: 22px;
+  background-color: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  transition: transform 0.3s ease;
+}
+
+/* When toggled */
+.toggle-slider.on {
+  transform: translateX(26px);
+}
+
 `
 
     // Inject the CSS
@@ -524,27 +574,30 @@ z-index: 1000;
         const addButton = document.getElementById(`watchscribe-add-${widgetID}`);
         const sendAsIsButton = document.getElementById(`watchscribe-send-as-is-${widgetID}`);
         const regexInput = document.getElementById(`watchscribe-regex-${widgetID}`);
-        const btn = document.getElementById(`toggleBtn-${widgetID}`);
         const labelOn = document.getElementById(`labelOn-${widgetID}`);
         const labelOff = document.getElementById(`labelOff-${widgetID}`);
         const title = document.getElementById(`watchscribe-title-${widgetID}`);
+        const toggleBtn = document.getElementById(`toggleBtn-${widgetID}`);
+        const silentToggle = document.getElementById(`watchscribe-silent-${widgetID}`);
 
 
-        btn.addEventListener('click', () => {
-            const isOpen = commandType === COMMAND_TYPES.blacklist;
+        toggleBtn.parentElement.addEventListener('click', () => {
+            commandType = commandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
+            isOn = commandType === COMMAND_TYPES.blacklist;
+            toggleBtn.classList.toggle('on', isOn);
 
-            if (!isOpen) {
-                labelOn.style.fontWeight = 'bold';
-                labelOff.style.fontWeight = 'normal';
-                commandType = COMMAND_TYPES.blacklist;
-                btn.innerHTML = '-->';
-                title.innerHTML = "<s>Watch</s> BlacklistScribe"
+            labelOn.classList.toggle('active', isOn);
+            labelOff.classList.toggle('active', !isOn);
+
+            title.innerHTML = isOn ? "<s>Watch</s> BlacklistScribe" : "WatchScribe";
+        });
+
+        silentToggle.addEventListener('change', () => {
+            silent = silentToggle.checked;
+            if (silent) {
+                toggleBtn.classList.add('silent');
             } else {
-                labelOn.style.fontWeight = 'normal';
-                labelOff.style.fontWeight = 'bold';
-                commandType = COMMAND_TYPES.watch;
-                btn.innerHTML = '<--';
-                title.innerHTML = "WatchScribe";
+                toggleBtn.classList.remove('silent');
             }
         });
 
