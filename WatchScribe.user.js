@@ -384,8 +384,6 @@
         const sendButton = document.createElement('button');
         sendButton.textContent = "Send to chat";
         sendButton.className = 'ws-send-button';
-        console.log("Creating send button for command:", command);
-        console.log("Send button element:", sendButton.className);
         sendButton.addEventListener('click', () => {
             sendMessage(command);
             sendButton.style.display = "none";
