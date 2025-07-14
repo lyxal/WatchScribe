@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.7.4
+// @version      0.7.5
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -17,6 +17,12 @@
 
 (() => {
     const charcoalHq = 11540;
+    const COMMAND_TYPES = {
+        "watch": "watch",
+        "blacklist": "blacklist",
+    };
+
+    var commandType = COMMAND_TYPES.watch;
 
     /**
      * Send a message to chat
@@ -126,9 +132,18 @@
         regexes.push(`${hostname}(?!\\.${tldDivided})`);
 
         // Uniquify regexes because it may have duplicates
-        regexes = [...new Set(regexes)];
+        unCommandedregexes = [...new Set(regexes)];
+        commands = [];
 
-        return regexes;
+        for (let regex of unCommandedregexes) {
+            if (commandType === COMMAND_TYPES.blacklist) {
+                commands.push(`!!/blacklist-url- ${regex}`);
+            } else {
+                commands.push(`!!/watch ${regex}`);
+            }
+        }
+
+        return commands;
     }
 
     /**
@@ -283,18 +298,18 @@
 
         if (justNumbers.length == 10) {
             // 10 digits, so add an option for it to be a non-american number
-            regexes.push(`!!/watch-number ${justNumbers} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number- ${justNumbers} (?#NO NorAm)`);
             // As well as the normal 10 digit number
-            regexes.push(`!!/watch-number +1-${justNumbers} (?#IS NorAm)`);
+            regexes.push(`!!/${commandType}-number- +1-${justNumbers} (?#IS NorAm)`);
         }
 
         if (justNumbers.startsWith("0") && justNumbers.length == 11) {
             // 11 digits, starting with 0, so add an option for it to be
             // a non-american number
-            regexes.push(`!!/watch-number ${justNumbers.slice(1)} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number- ${justNumbers.slice(1)} (?#NO NorAm)`);
         }
 
-        regexes.push(`!!/watch-number ${justNumbers}`);
+        regexes.push(`!!/${commandType}-number ${justNumbers}`);
 
 
         return regexes;
@@ -322,6 +337,9 @@
         }
         // Otherwise, it's normal text
         else {
+            if (commandType === COMMAND_TYPES.blacklist) {
+                return [`!!/blacklist-keyword- ${generateForText(input)}`];
+            }
             return [generateForText(input)];
         }
     }
@@ -334,7 +352,7 @@
     function createListItem(forList, message) {
 
         // If the message isn't already a watch-number command, prefix it with "!!/watch-"
-        const command = (!message.startsWith("!!/watch-number") ? "!!/watch- " : "") + message
+        const command = (!message.startsWith(`!!/${commandType}`) ? `!!/${commandType}- ` : "") + message
 
         // Create the list item and the code element
         const listItem = document.createElement('li');
@@ -430,7 +448,16 @@
 
     let widgetHTML = `
     <div id="watchscribe-widget-%" style="padding-top: 2em; margin-left: 1em; z-index: 300">
-        <h3>WatchScribe</h3>
+        <div id="watchscribe-header-%" style="font-weight: bold; font-size: 1.2em; margin-bottom: 0.5em; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0;" id="watchscribe-title-%">WatchScribe</h3>
+
+            <div class="toggle-container-%">
+                <span id="labelOff-%" style="font-weight: bold;">Watch</span>
+                <button id="toggleBtn-%">&lt;--</button>
+                <span id="labelOn-%" style="font-weight: normal;">Blacklist</span>
+            </div>
+        </div>
+
         <p>Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
         <button id="watchscribe-button-%">Generate Regex</button>
         <button id="watchscribe-clear-%">Clear List</button>
@@ -464,6 +491,13 @@ word-break: break-word;
 cursor: auto;
 z-index: 1000;
 }
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  font-weight: normal;
+}
 `
 
     // Inject the CSS
@@ -485,6 +519,29 @@ z-index: 1000;
         const addButton = document.getElementById(`watchscribe-add-${widgetID}`);
         const sendAsIsButton = document.getElementById(`watchscribe-send-as-is-${widgetID}`);
         const regexInput = document.getElementById(`watchscribe-regex-${widgetID}`);
+        const btn = document.getElementById(`toggleBtn-${widgetID}`);
+        const labelOn = document.getElementById(`labelOn-${widgetID}`);
+        const labelOff = document.getElementById(`labelOff-${widgetID}`);
+        const title = document.getElementById(`watchscribe-title-${widgetID}`);
+
+
+        btn.addEventListener('click', () => {
+            const isOpen = commandType === COMMAND_TYPES.blacklist;
+
+            if (!isOpen) {
+                labelOn.style.fontWeight = 'bold';
+                labelOff.style.fontWeight = 'normal';
+                commandType = COMMAND_TYPES.blacklist;
+                btn.innerHTML = '-->';
+                title.innerHTML = "<s>Watch</s> BlacklistScribe"
+            } else {
+                labelOn.style.fontWeight = 'normal';
+                labelOff.style.fontWeight = 'bold';
+                commandType = COMMAND_TYPES.watch;
+                btn.innerHTML = '<--';
+                title.innerHTML = "WatchScribe";
+            }
+        });
 
         clearButton.addEventListener('click', () => regexList.innerHTML = "");
 

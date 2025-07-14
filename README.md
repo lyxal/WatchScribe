@@ -1,9 +1,9 @@
 # WatchScribe
 A handy dandy tool to generate regexes for smokey to watch.
 
-Requires [FIRE](https://github.com/Charcoal-SE/userscripts/tree/master/fire) for optimal benefit.
+Requires [FIRE](https://github.com/Charcoal-SE/userscripts/tree/master/fire)
+to operate.
 
-_Very much in development._
 
 ## How to Use
 
@@ -36,9 +36,10 @@ You can send any individual regex to chat by clicking the "Send to chat" button 
 These are goals that will be implemented over time in no particular order.
 
 - ~~Make it so that regexes can be automatically sent from a button click (e.g. a button next to each regex saying "Send to Chat")~~ [Implemented]
-- Get more regex tips from other people in CHQ
+- ~~Get more regex tips from other people in CHQ~~ [Completed]
 - Suggest possible words/phrases to watch
-- Add phone number handling
+- ~~Add phone number handling~~ [Implemented]
 - Utilise data from the report (e.g. know which domains have already been watched)
 - ~~Make it so that links can be selected + hovered (will require borrowing code from FIRE)~~ [Implemented]
 - Highlight _where_ in the post the detected reasons are.
+- Allow for a setting to toggle whether commands are silent (ending with `-`) or not (ending with nothing).
