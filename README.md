@@ -1,4 +1,9 @@
 # WatchScribe
+
+_[Direct Install](https://github.com/lyxal/WatchScribe/raw/refs/heads/main/WatchScribe.user.js)_
+
+---
+
 A handy dandy tool to generate regexes for smokey to watch.
 
 Requires [FIRE](https://github.com/Charcoal-SE/userscripts/tree/master/fire)
