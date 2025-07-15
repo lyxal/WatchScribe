@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.9.2
+// @version      0.9.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -150,11 +150,20 @@
     /**
      * Generate a regex for arbitrary text. Lowercases and inserts checks for arbitrary spaces/non-word characters
      * @param {string} text The text to generate a regex for
-     * @returns {string} The regex for the text
+     * @returns {string[]} Possible regexes for the text
      */
     function generateForText(text) {
+        let regexes = [];
         // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
-        return text.toLowerCase().trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+");
+        regexes.push(text.toLowerCase().trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+"));
+
+        // If text has more than 3 capital letters not at the start
+        // wrap in `(?i-:)`
+
+        if (text.replace(/^[A-Z]/, "").match(/[A-Z]/g)?.length >= 3) {
+            regexes = regexes.map(regex => `(?i-:)${regex}`);
+        }
+        return regexes;
     }
 
     // Homoglpyh to number mapping, taken directly from the SmokeDetector codebase
@@ -349,10 +358,11 @@
         }
         // Otherwise, it's normal text
         else {
+            regexes = generateForText(input);
             if (commandType === COMMAND_TYPES.blacklist) {
-                return [`!!/blacklist-keyword${silent ? "-" : ""} ${generateForText(input)}`];
+                return regexes.map(regex => `!!/blacklist-keyword${silent ? "-" : ""} ${regex}`);
             }
-            return [`!!/watch${silent ? "-" : ""} ${generateForText(input)}`];
+            return regexes.map(regex => `!!/watch${silent ? "-" : ""} ${regex}`);
         }
     }
 
@@ -773,6 +783,13 @@
             newLink.setAttribute("data-tooltip", link.href);
             newLink.setAttribute("innerText", link.innerText);
             newLink.classList.add("watchscribe-link");
+
+            // However, allow ctrl+click to open the link in a new tab
+            newLink.addEventListener("click", (e) => {
+                if (e.ctrlKey) {
+                    window.open(link.href, "_blank");
+                }
+            });
 
             // Italicize the link text
             newLink.style.fontWeight = "bold";
