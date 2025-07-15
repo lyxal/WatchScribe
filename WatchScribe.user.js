@@ -368,7 +368,7 @@
      */
     function createListItem(forList, message) {
         // Add prefix if needed
-        const command = (!message.startsWith(`!!/${commandType}`)
+        let command = (!message.startsWith(`!!/${commandType}`)
             ? `!!/${commandType}${silent ? "-" : ""} `
             : "") + message;
 
@@ -385,6 +385,17 @@
         regexHTML.textContent = command;
         regexHTML.className = 'ws-code';
 
+        // Editable input (hidden by default)
+        const editInput = document.createElement('input');
+        editInput.type = 'text';
+        editInput.value = command;
+        editInput.className = 'ws-edit-input';
+        editInput.style.display = 'none';
+        editInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+        });
+
+
         // Send button
         const sendButton = document.createElement('button');
         sendButton.textContent = "Send to chat";
@@ -394,9 +405,34 @@
             sendButton.style.display = "none";
         });
 
+        // Edit button
+        const editButton = document.createElement('button');
+        editButton.textContent = "Edit";
+        editButton.className = 'ws-edit-button';
+        editButton.addEventListener('click', () => {
+            const editing = editInput.style.display === 'inline-block';
+            if (editing) {
+                // Save
+                command = editInput.value;
+                regexHTML.textContent = command;
+                regexHTML.style.display = 'inline';
+                editInput.style.display = 'none';
+                editButton.textContent = "Edit";
+                sendButton.style.display = "inline"; // Show again if edited
+            } else {
+                // Begin editing
+                editInput.value = command;
+                editInput.style.display = 'inline-block';
+                regexHTML.style.display = 'none';
+                editButton.textContent = "Save";
+            }
+        });
+
         // Assemble
         itemHTML.appendChild(regexHTML);
+        itemHTML.appendChild(editInput);
         itemHTML.appendChild(sendButton);
+        itemHTML.appendChild(editButton);
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
     }
@@ -643,14 +679,15 @@
 
 .ws-list-content {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.5em;
   background: #f5f5f5;
   border: 1px solid #ddd;
   padding: 0.5em 0.75em;
   border-radius: 6px;
   font-size: 0.9em;
   box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+  
 }
 
 .ws-code {
@@ -660,8 +697,11 @@
   border-radius: 4px;
   color: #333;
   word-break: break-word;
-  max-width: 70%;
+  width: 60%;
   overflow-wrap: anywhere;
+  flex-grow: 1;
+  margin-right: 1em;
+  overflow-x: auto;
 }
 
 .ws-send-button {
@@ -679,6 +719,34 @@
 .ws-send-button:hover {
   background-color: #218838;
 }
+
+.ws-edit-button {
+  background-color: #ffc107;
+  color: black;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+  margin-left: 0.5em;
+  transition: background-color 0.3s ease;
+}
+
+.ws-edit-button:hover {
+  background-color: #e0a800;
+}
+
+.ws-edit-input {
+  font-family: monospace;
+  font-size: 0.9em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #aaa;
+  width: 60%;
+  flex-grow: 1;
+  overflow-x: auto;
+}
+
 
 </style>
 `
