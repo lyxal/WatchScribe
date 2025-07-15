@@ -299,9 +299,9 @@
 
         if (justNumbers.length == 10) {
             // 10 digits, so add an option for it to be a non-american number
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers}(?#NO NorAm)`);
             // As well as the normal 10 digit number
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} +1-${justNumbers} (?#IS NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} +1-${justNumbers}(?#IS NorAm)`);
         }
 
         // 11 digit numbers starting with a 0 can be written
@@ -309,7 +309,7 @@
         // number. Therefore, add an option for the short version
         // but add the context back via No NorAm.
         if (justNumbers.startsWith("0") && justNumbers.length == 11) {
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(1)} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(1)}(?#NO NorAm)`);
         }
 
         // 12 digit numbers starting with 91 have the same problem.
@@ -318,7 +318,7 @@
         // consistency please.
 
         if (justNumbers.startsWith("91") && justNumbers.length == 12) {
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(2)} (?#NO NorAm)`);
+            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(2)}(?#NO NorAm)`);
         }
 
         regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers}`);
