@@ -154,15 +154,10 @@
      */
     function generateForText(text) {
         let regexes = [];
+        let safeText = text.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")
         // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
-        regexes.push(text.toLowerCase().trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+"));
+        regexes.push(safeText.toLowerCase());
 
-        // If text has more than 3 capital letters not at the start
-        // wrap in `(?i-:)`
-
-        if (text.replace(/^[A-Z]/, "").match(/[A-Z]/g)?.length >= 3) {
-            regexes = regexes.map(regex => `(?i-:)${regex}`);
-        }
         return regexes;
     }
 
@@ -441,14 +436,16 @@
         if (selectedElement && selectedElement.tagName === 'SPAN' && selectedElement.classList.contains('watchscribe-link')) {
             const url = selectedElement.getAttribute("href");
             const text = selectedElement.innerText;
-            const textRegex = generateForText(text);
+            const textRegexes = generateForText(text);
 
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
-                if (commandType === COMMAND_TYPES.blacklist) {
-                    regexes.push(`!!/blacklist-keyword- ${textRegex}`);
-                } else {
-                    regexes.push(textRegex);
+                for (let textRegex of textRegexes) {
+                    if (commandType === COMMAND_TYPES.blacklist) {
+                        regexes.push(`!!/blacklist-keyword- ${textRegex}`);
+                    } else {
+                        regexes.push(textRegex);
+                    }
                 }
             }
 
@@ -467,7 +464,9 @@
             const tld = new URL(url).hostname.split(".").pop().toLowerCase();
 
             if (processedHostname.match(processedText)) {
-                regexes.push(`${textRegex}(?!\\.${tld})`);
+                for (let textRegex of textRegexes) {
+                    regexes.push(`${textRegex}(?!\\.${tld})`);
+                }
             }
         } else {
             regexes = generateFor(selectedText);
