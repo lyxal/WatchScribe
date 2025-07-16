@@ -154,9 +154,9 @@
      */
     function generateForText(text) {
         let regexes = [];
-        let safeText = text.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")
+        let safeText = text.trim().toLowerCase().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")
         // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
-        regexes.push(safeText.toLowerCase());
+        regexes.push(safeText);
 
         return regexes;
     }
