@@ -53,16 +53,11 @@ You can also silence or unsilence commands with the silent switch:
 
 <img width="1371" height="967" alt="image" src="https://github.com/user-attachments/assets/c802061f-6ae5-40ea-93b2-fd4ca6c5460b" />
 
+Hold shift when clicking the "Generate Regex" button to make plain text commands wrap in `(?i-:)`:
 
-## Eventual Goals
+<img width="1221" height="370" alt="image" src="https://github.com/user-attachments/assets/34c49447-cf8e-431d-ae18-f061262c7cb5" />
 
-These are goals that will be implemented over time in no particular order.
+Additionally, you can remove individual regexes from the list by clicking the red x button:
 
-- ~~Make it so that regexes can be automatically sent from a button click (e.g. a button next to each regex saying "Send to Chat")~~ [Implemented]
-- ~~Get more regex tips from other people in CHQ~~ [Completed]
-- Suggest possible words/phrases to watch
-- ~~Add phone number handling~~ [Implemented]
-- Utilise data from the report (e.g. know which domains have already been watched)
-- ~~Make it so that links can be selected + hovered (will require borrowing code from FIRE)~~ [Implemented]
-- Highlight _where_ in the post the detected reasons are.
-- ~~Allow for a setting to toggle whether commands are silent (ending with `-`) or not (ending with nothing)~~ [Implemented].
+<img width="1151" height="77" alt="image" src="https://github.com/user-attachments/assets/d4eacd20-af50-4acc-ba54-a0bcfba89edf" />
+
