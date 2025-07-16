@@ -414,7 +414,7 @@
 
         // Send button
         const sendButton = document.createElement('button');
-        sendButton.textContent = "Send to chat";
+        sendButton.textContent = "Send";
         sendButton.className = 'ws-send-button';
         sendButton.addEventListener('click', () => {
             sendMessage(command);
@@ -423,8 +423,9 @@
 
         // Edit button
         const editButton = document.createElement('button');
-        editButton.textContent = "Edit";
+        editButton.textContent = "✏️";
         editButton.className = 'ws-edit-button';
+        editButton.title = "Edit this regex";
         editButton.addEventListener('click', () => {
             const editing = editInput.style.display === 'inline-block';
             if (editing) {
@@ -433,22 +434,43 @@
                 regexHTML.textContent = command;
                 regexHTML.style.display = 'inline';
                 editInput.style.display = 'none';
-                editButton.textContent = "Edit";
+                editButton.textContent = "✏️";
                 sendButton.style.display = "inline"; // Show again if edited
             } else {
                 // Begin editing
                 editInput.value = command;
                 editInput.style.display = 'inline-block';
                 regexHTML.style.display = 'none';
-                editButton.textContent = "Save";
+                editButton.textContent = "✔️"; // Change button to save icon
             }
         });
 
+        // Anchor button (⛓️)
+        const anchorButton = document.createElement('button');
+        anchorButton.textContent = "⛓️"; // Or "Anchor"
+        anchorButton.title = "Anchor this regex (wrap in ^ and $)";
+        anchorButton.addEventListener('click', () => {
+            let currentCommand = editInput.style.display === 'inline-block' ? editInput.value : regexHTML.textContent
+            // Split the command into prefix and regex parts
+            let [prefix, ...regexParts] = currentCommand.split(' ');
+            let regex = regexParts.join(' ');
+            // If the regex already starts with ^ and ends with $, just remove them
+            if (regex.startsWith('^') && regex.endsWith('$')) {
+                regex = regex.slice(1, -1);
+            } else {
+                regex = `^${regex}$`;
+            }
+            editInput.value = `${prefix} ${regex}`;
+            regexHTML.textContent = `${prefix} ${regex}`;
+        });
+        anchorButton.className = 'ws-anchor-button';
+        anchorButton.style.display = command.split(' ')[0].includes("number") ? 'none' : 'inline-block'; // Hide for number commands
+
         // 🗑 Remove button
         const removeButton = document.createElement('button');
-        removeButton.textContent = "×"; // Or "Remove"
+        removeButton.textContent = "🗑️"; // Or "Remove"
         removeButton.className = 'ws-remove-button';
-        removeButton.title = "Remove this item";
+        removeButton.title = "Remove this regex";
         removeButton.addEventListener('click', () => {
             listItem.remove();
         });
@@ -458,6 +480,7 @@
         itemHTML.appendChild(editInput);
         itemHTML.appendChild(sendButton);
         itemHTML.appendChild(editButton);
+        itemHTML.appendChild(anchorButton); // Add anchor button
         itemHTML.appendChild(removeButton); // Add last for UI spacing
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
@@ -536,6 +559,21 @@
                     }
                 }
             }
+        } else if (selectedElement && selectedElement.tagName === 'A' && selectedElement.classList.contains('fire-user-name')) {
+            // If the selected element is a link to a user, generate a regex for the username
+            const username = selectedElement.innerText.trim();
+            let originalCaseInsensitive = caseInsensitive;
+            caseInsensitive = true; // Always case-insensitive for usernames
+            const usernameRegexes = generateForText(username);
+            caseInsensitive = originalCaseInsensitive; // Reset case-insensitive flag
+            for (let usernameRegex of usernameRegexes) {
+                if (commandType === COMMAND_TYPES.blacklist) {
+                    regexes.push(`!!/blacklist-username${silent ? "-" : ""} ${usernameRegex}`);
+                } else {
+                    regexes.push(`!!/watch${silent ? "-" : ""} ${usernameRegex}`);
+                }
+            }
+
         } else {
             regexes = generateFor(selectedText);
         }
@@ -797,6 +835,19 @@
   background: #cc0000;
 }
 
+.ws-anchor-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+.ws-anchor-button:hover {
+  background: #0056b3;
+}
 </style>
 `
 
