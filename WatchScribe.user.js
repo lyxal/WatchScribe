@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.10.0
+// @version      0.10.1
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -132,11 +132,9 @@
         regexes.push(`${hostname}(?!\\.${tldFull})`);
         regexes.push(`${hostname}(?!\\.${tldDivided})`);
 
-        // Uniquify regexes because it may have duplicates
-        unCommandedregexes = [...new Set(regexes)];
         commands = [];
 
-        for (let regex of unCommandedregexes) {
+        for (let regex of regexes) {
             if (commandType === COMMAND_TYPES.blacklist) {
                 commands.push(`!!/blacklist-url${silent ? "-" : ""} ${regex}`);
             } else {
@@ -502,12 +500,19 @@
 
             if (processedHostname.match(processedText)) {
                 for (let textRegex of textRegexes) {
-                    regexes.push(`${textRegex}(?!\\.${tld})`);
+                    if (commandType === COMMAND_TYPES.blacklist) {
+                        regexes.push(`!!/blacklist-url${silent ? "-" : ""} ${textRegex}(?!\\.${tld})`);
+                    } else {
+                        regexes.push(`!!/watch${silent ? "-" : ""} ${textRegex}(?!\\.${tld})`);
+                    }
                 }
             }
         } else {
             regexes = generateFor(selectedText);
         }
+
+        regexes = [...new Set(regexes)]; // Remove duplicates
+        console.log("Generated regexes:", regexes);
 
         for (let regex of regexes) {
             createListItem(list, regex);
