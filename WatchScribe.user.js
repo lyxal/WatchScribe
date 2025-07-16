@@ -24,6 +24,7 @@
 
     var commandType = COMMAND_TYPES.watch;
     var silent = true;
+    var caseInsensitive = false;
 
     /**
      * Send a message to chat
@@ -152,13 +153,25 @@
      */
     function generateForText(text) {
         let regexes = [];
+
         // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
-        regexes.push(text.trim().toLowerCase().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+"));
+        let defaultRegex = text.trim().toLowerCase().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+");
+
+
+        if (caseInsensitive) {
+            // If case-insensitive mode is enabled, add a case-insensitive version
+            regexes.push(`(?-i:${text.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`);
+        }
 
         // If the text has no spaces, and contains uppercase letters, wrap in a case-insensitive group
-        if (!text.includes(" ") && /[A-Z]/.test(text)) {
-            regexes.push(`(?i:${text.replaceAll(".", "\\.")})`);
+        else if (!text.includes(" ") && /[A-Z]/.test(text)) {
+            regexes.push(`(?-i:${defaultRegex})`);
+            regexes.push(`${defaultRegex}`);
+        } else {
+            // Otherwise, just use the default regex
+            regexes.push(defaultRegex);
         }
+
 
         return regexes;
     }
@@ -398,7 +411,6 @@
             e.stopPropagation();
         });
 
-
         // Send button
         const sendButton = document.createElement('button');
         sendButton.textContent = "Send to chat";
@@ -431,14 +443,25 @@
             }
         });
 
+        // 🗑 Remove button
+        const removeButton = document.createElement('button');
+        removeButton.textContent = "×"; // Or "Remove"
+        removeButton.className = 'ws-remove-button';
+        removeButton.title = "Remove this item";
+        removeButton.addEventListener('click', () => {
+            listItem.remove();
+        });
+
         // Assemble
         itemHTML.appendChild(regexHTML);
         itemHTML.appendChild(editInput);
         itemHTML.appendChild(sendButton);
         itemHTML.appendChild(editButton);
+        itemHTML.appendChild(removeButton); // Add last for UI spacing
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
     }
+
 
 
     /**
@@ -758,6 +781,20 @@
   overflow-x: auto;
 }
 
+.ws-remove-button {
+  background: #aa2222;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  margin-left: 0.5em;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+.ws-remove-button:hover {
+  background: #cc0000;
+}
 
 </style>
 `
@@ -805,10 +842,10 @@
             silent = silentToggle.checked;
             if (silent) {
                 toggleBtn.classList.add('silent');
-                silentLabel.textContent = "Silent";
+                silentLabel.textContent = "Silent (!!/command-)";
             } else {
                 toggleBtn.classList.remove('silent');
-                silentLabel.textContent = "No hyphen";
+                silentLabel.textContent = "No hyphen (!!/command)";
             }
         });
 
@@ -846,6 +883,24 @@
         });
 
         generateButton.addEventListener('click', () => generateRegexes(regexList));
+
+        document.addEventListener('keydown', (e) => {
+            const tag = e.target.tagName;
+            if (e.key === 'Shift' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                generateButton.innerText = "Generate Regex (case insensitive - `?-i:`)";
+                caseInsensitive = true;
+
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const tag = e.target.tagName;
+            if (e.key === 'Shift' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                generateButton.innerText = "Generate Regex";
+                caseInsensitive = false;
+            }
+        });
+
 
         // Make it so that links aren't clickable in the popup (so that they can actually be selected)
         // Usually, trying to select link text will just open the link in a new tab.
