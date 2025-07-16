@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.10.1
+// @version      0.10.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -152,9 +152,13 @@
      */
     function generateForText(text) {
         let regexes = [];
-        let safeText = text.trim().toLowerCase().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")
         // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
-        regexes.push(safeText);
+        regexes.push(text.trim().toLowerCase().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+"));
+
+        // If the text has no spaces, and contains uppercase letters, wrap in a case-insensitive group
+        if (!text.includes(" ") && /[A-Z]/.test(text)) {
+            regexes.push(`(?i:${text.replaceAll(".", "\\.")})`);
+        }
 
         return regexes;
     }
@@ -472,6 +476,7 @@
             const url = selectedElement.getAttribute("href");
             const text = selectedElement.innerText;
             const textRegexes = generateForText(text);
+            textRegexes.push(...generateForText(selectedText)); // Add the selected text regexes as well
 
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
