@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.9.4
+// @version      0.10.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -340,8 +340,9 @@
      */
     function generateFor(input) {
         const numberedInput = input.replace(/[()\[\]{}\- ]/g, "");
+        const isAllNumbers = (txt) => [...txt].every(char => /\p{Number}/u.test(char));
         // Check whether the input is something that looks like a URL
-        if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input)) {
+        if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input) && !isAllNumbers(input.replaceAll(".", ""))) {
             return generateForURL(input);
         }
         // Perhaps it's a phone number?
