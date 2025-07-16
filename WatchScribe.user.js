@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.10.2
+// @version      0.10.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -568,7 +568,7 @@
     <label class="toggle-container">
       <input type="checkbox" id="watchscribe-silent-%" checked>
       <span class="checkbox-slider"></span>
-      <span class="toggle-label" id="labelSilent-%">Silent</span>
+      <span class="toggle-label" id="labelSilent-%">Silent (!!/command-)</span>
     </label>
   </div>
 
