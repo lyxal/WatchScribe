@@ -61,3 +61,7 @@ Additionally, you can remove individual regexes from the list by clicking the re
 
 <img width="1151" height="77" alt="image" src="https://github.com/user-attachments/assets/d4eacd20-af50-4acc-ba54-a0bcfba89edf" />
 
+The anchor button wraps a regex in `^$`:
+
+<img width="1174" height="401" alt="image" src="https://github.com/user-attachments/assets/685428f9-bd6e-4d7d-b86b-58124b63e4de" />
+
