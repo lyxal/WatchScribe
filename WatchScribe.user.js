@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.11.1
+// @version      0.12.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -21,6 +21,8 @@
         "watch": "watch",
         "blacklist": "blacklist",
     };
+
+    const LINK_CHAIN_INDICATOR = "​🔗​"; // The link indicator to use in the chat
 
     var commandType = COMMAND_TYPES.watch;
     var silent = true;
@@ -60,13 +62,6 @@
             toastr.success('Successfully sent message to chat.');
         }
     }
-
-
-    /**
-     * A small helper function to get the currently selected text
-     * @returns {string} The selected text
-     */
-    const getSelectedText = () => window.getSelection().toString();
 
     /**
      * Generate potentially multiple regexes for a given URL
@@ -162,12 +157,7 @@
         if (caseInsensitive) {
             // If case-insensitive mode is enabled, add a case-insensitive version
             regexes.push(`(?-i:${safetext.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`);
-        }
 
-        // If the text has no spaces, and contains uppercase letters, wrap in a case-insensitive group
-        else if (!text.includes(" ") && /[A-Z]/.test(text)) {
-            regexes.push(`(?-i:${defaultRegex})`);
-            regexes.push(`${defaultRegex}`);
         } else {
             // Otherwise, just use the default regex
             regexes.push(defaultRegex);
@@ -498,14 +488,49 @@
         let regexes = [];
 
         // Get both selected text _and_ selected element
-        const selectedText = getSelectedText();
         // This is so that you can select a link and auto-watch both url and anchor text
-        const selectedElement = window.getSelection().focusNode ? window.getSelection().focusNode.parentElement : null;
+        let selectedElement = window.getSelection().focusNode ? window.getSelection().focusNode.parentElement : null;
+
+
+        let selectedText = window.getSelection().toString().trim();
+        if (selectedElement && selectedElement.querySelector('a[link-indicator="true"]')) {
+            selectedText = selectedText.replace(LINK_CHAIN_INDICATOR, "")
+        }
 
         if (selectedText === "") {
             alert("No text selected!");
             return;
         }
+
+        // First, "normalise" the selected object if it's a <sup> with the "link-indicator" attribute
+        // present and set to "true". If it is, retrieve the span from two levels up
+
+        if (selectedElement && selectedElement.tagName === 'SUP' && selectedElement.hasAttribute('link-indicator') && selectedElement.getAttribute('link-indicator') === 'true') {
+            // Get the parent element two levels up
+            const parentElement = selectedElement.parentElement.parentElement;
+            // Check if the parent element is a span with the "watchscribe-link" class
+            if (parentElement.tagName === 'SPAN' && parentElement.classList.contains('watchscribe-link')) {
+                // Set the selected element to the parent element
+                selectedElement = parentElement.cloneNode(true); // Clone the element to avoid modifying the original
+            } else {
+                // If not, set it to null so we don't try to process it as a link
+                selectedElement = null;
+            }
+        }
+
+        let link = selectedElement && selectedElement.querySelector('a[link-indicator="true"]');
+
+        if (link) {
+            const clone = selectedElement.cloneNode(true); // clone the full element
+            const cloneLink = clone.querySelector('a[link-indicator="true"]');
+            if (cloneLink) cloneLink.remove();
+            selectedElement = clone; // Use the cloned element without the link
+        }
+
+
+
+        console.log("Selected element:", selectedElement);
+        console.log("Selected text:", selectedText);
 
         /*
         * If the selected element is an anchor tag (which will have been converted to a span),
@@ -963,7 +988,6 @@
         for (let link of links) {
             // Copy the link element into a new a element which is not clickable
             const newLink = document.createElement("span");
-            newLink.textContent = link.textContent;
             newLink.setAttribute("href", link.href);
             newLink.setAttribute("data-tooltip", link.href);
             newLink.setAttribute("innerText", link.innerText);
@@ -980,7 +1004,29 @@
             newLink.style.fontWeight = "bold";
             newLink.style.textDecoration = "underline";
             newLink.style.position = "relative";
+
+            const linkIndicator = document.createElement("a");
+            linkIndicator.innerHTML = `<sup link-indicator='true'>${LINK_CHAIN_INDICATOR}</sup>`;
+            linkIndicator.href = link.href;
+            linkIndicator.target = "_blank";
+            linkIndicator.setAttribute("link-indicator", "true");
+
+            // Make it so that hovering the link indicator highlights the link text
+            linkIndicator.addEventListener("mouseover", () => {
+                newLink.style.backgroundColor = "yellow";
+                newLink.style.borderRadius = "4px";
+            });
+            linkIndicator.addEventListener("mouseout", () => {
+                newLink.style.backgroundColor = "";
+                newLink.style.borderRadius = "";
+            });
+
+            newLink.textContent = link.textContent;
+            newLink.appendChild(linkIndicator);
+
+
             link.replaceWith(newLink);
+
         }
     })
 })();
