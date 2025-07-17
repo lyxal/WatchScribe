@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.11.0
+// @version      0.11.1
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -414,7 +414,7 @@
 
         // Send button
         const sendButton = document.createElement('button');
-        sendButton.textContent = "Send";
+        sendButton.textContent = "Send to Chat";
         sendButton.className = 'ws-send-button';
         sendButton.addEventListener('click', () => {
             sendMessage(command);
