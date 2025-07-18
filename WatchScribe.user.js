@@ -656,22 +656,6 @@
 
     let customCSS = `
     <style>
-/* Tooltip styling */
-.watchscribe-link:hover::after {
-  content: attr(data-tooltip);
-  position: fixed;
-  background: #eee;
-  padding: 5px;
-  border-radius: 4px;
-  box-shadow: 0 0 10px 0 #888;
-  border: 1px solid #bbb;
-  white-space: pre-line;
-  font-size: 12px;
-  max-width: 70vw;
-  word-wrap: break-word;
-  z-index: 1000;
-}
-
 /* Toggle layout */
 .toggle-container {
   display: flex;
@@ -1029,4 +1013,64 @@
 
         }
     })
+
+    // === Tooltip Setup ===
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = `
+  position: fixed;
+  background: #eee;
+  padding: 5px;
+  border-radius: 4px;
+  box-shadow: 0 0 10px 0 #888;
+  border: 1px solid #bbb;
+  white-space: pre-line;
+  font-size: 12px;
+  max-width: 70vw;
+  word-wrap: break-word;
+  z-index: 10000;
+  display: none;
+  pointer-events: none;
+`;
+    document.body.appendChild(tooltip);
+
+    function showTooltip(el) {
+        const text = el.getAttribute('data-tooltip');
+        if (!text) return;
+        tooltip.textContent = text;
+        tooltip.style.display = 'block';
+
+        const rect = el.getBoundingClientRect();
+        const tooltipHeight = tooltip.offsetHeight;
+        const tooltipWidth = tooltip.offsetWidth;
+
+        let top = rect.bottom + 8;
+        if (top + tooltipHeight > window.innerHeight) {
+            top = rect.top - tooltipHeight - 8;
+        }
+
+        let left = rect.left;
+        if (left + tooltipWidth > window.innerWidth) {
+            left = window.innerWidth - tooltipWidth - 8;
+        }
+
+        tooltip.style.top = `${Math.max(8, top)}px`;
+        tooltip.style.left = `${Math.max(8, left)}px`;
+    }
+
+    function hideTooltip() {
+        tooltip.style.display = 'none';
+    }
+
+    // === Tooltip Events for .watchscribe-link ===
+    document.addEventListener('mouseover', (e) => {
+        const el = e.target.closest('.watchscribe-link[data-tooltip]');
+        if (el) showTooltip(el);
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        if (e.target.closest('.watchscribe-link[data-tooltip]')) {
+            hideTooltip();
+        }
+    });
+
 })();
