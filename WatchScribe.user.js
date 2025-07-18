@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.12.1
+// @version      0.12.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -545,7 +545,7 @@
         */
 
         if (selectedElement && selectedElement.tagName === 'SPAN' && selectedElement.classList.contains('watchscribe-link')) {
-            const url = selectedElement.getAttribute("href");
+            const url = selectedElement.getAttribute("data-href");
             const text = selectedElement.innerText;
             const textRegexes = generateForText(text);
             textRegexes.push(...generateForText(selectedText)); // Add the selected text regexes as well
@@ -972,7 +972,7 @@
         for (let link of links) {
             // Copy the link element into a new a element which is not clickable
             const newLink = document.createElement("span");
-            newLink.setAttribute("href", link.href);
+            newLink.setAttribute("data-href", link.href);
             newLink.setAttribute("data-tooltip", link.href);
             newLink.setAttribute("innerText", link.innerText);
             newLink.classList.add("watchscribe-link");
