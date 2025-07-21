@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.12.3
+// @version      0.13.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -27,6 +27,12 @@
     var commandType = COMMAND_TYPES.watch;
     var silent = true;
     var caseInsensitive = false;
+    var regexSendingOverride = false;
+
+    const LETTERING_ORDER = "123456789abcdefghijklmnopqrstuvwxyz,./[]\\;'`";
+
+    const DONT_ACTUALLY_SEND_THIS_IS_DEBUG_MODE_FLAG = false;
+
 
     /**
      * Send a message to chat
@@ -34,6 +40,12 @@
      * @returns void
      */
     async function sendMessage(message) {
+
+        if (DONT_ACTUALLY_SEND_THIS_IS_DEBUG_MODE_FLAG) {
+            alert(`Debug mode is enabled. Not sending message: ${message}`);
+            return;
+        }
+
         // Retrieve the fkey element
         const fkeyEl = document.querySelector('input[name="fkey"]');
         const fkey = fkeyEl && fkeyEl.value;
@@ -612,6 +624,56 @@
         }
     }
 
+    /**
+     * Show send shortcuts for the given list element.
+     * @param {HTMLElement} list 
+     */
+    function showSendShortcuts(list) {
+        // If a user has more regexes than letters in LETTERING_ORDER, then I think
+        // there's a good chance that user is doing something just a little
+        // bit wrong.
+
+        let letterIndex = 0;
+
+        for (let i = 0; i < list.children.length; i++) {
+            const item = list.children[i];
+            if (item.tagName.toLowerCase() === 'li') {
+                if (item.querySelector('.ws-send-shortcut')) {
+                    // If the item already has a send shortcut, remove it
+                    item.querySelector('.ws-send-shortcut').remove();
+                }
+                // Create a new send shortcut
+                const sendShortcut = document.createElement('span');
+                sendShortcut.className = 'ws-send-shortcut';
+                sendShortcut.innerHTML = `<kbd>${LETTERING_ORDER[letterIndex]}</kbd>`;
+
+                // Don't show the shortcut if the item has already been sent
+                if (item.querySelector('.ws-send-button').style.display === 'none') {
+                    sendShortcut.style.display = 'none';
+                }
+
+                // Insert this shortcut at the start of the item
+                item.querySelector('.ws-list-content').insertAdjacentElement('afterbegin', sendShortcut);
+
+                letterIndex++;
+            }
+        }
+
+    }
+
+    function hideSendShortcuts(list) {
+        for (let i = 0; i < list.children.length; i++) {
+            const item = list.children[i];
+            if (item.tagName.toLowerCase() === 'li') {
+                const sendShortcut = item.querySelector('.ws-send-shortcut');
+                if (sendShortcut) {
+                    sendShortcut.remove();
+                }
+            }
+        }
+    }
+
+
     //== HTML elements ==//
 
 
@@ -639,11 +701,30 @@
 
   <p style="margin-top: 0.5em;">Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
 
-  <div style="margin-bottom: 1em;">
+  <div style="margin-bottom: 1em;" id="watchscribe-button-container-%">
     <button id="watchscribe-button-%" class="ws-button">Generate Regex</button>
     <button id="watchscribe-clear-%" class="ws-button">Clear List</button>
     <button id="watchscribe-send-%" class="ws-button">Send All Regexes To Chat</button>
   </div>
+
+    <div id="watchscribe-sending-mode-%" style="
+    display: none;
+    margin-bottom: 1em;
+    background-color: #f0f4ff;
+    border-left: 4px solid #4a90e2;
+    padding: 1em;
+    border-radius: 6px;
+    font-family: system-ui, sans-serif;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    ">
+    <strong style="display: block; font-size: 1rem; color: #2c3e50;">
+        Regex sending mode is currently activated. Press <kbd style="background: #e1e4e8; padding: 2px 6px; border-radius: 3px; border: 1px solid #ccc;">]</kbd> to toggle it off.
+    </strong>
+    <em style="display: block; margin-top: 0.5em; color: #555;">
+        No other FIRE keybindings will work while this is active, except 
+        <kbd style="background: #e1e4e8; padding: 2px 6px; border-radius: 3px; border: 1px solid #ccc;">esc</kbd>.
+    </em>
+    </div>
 
   <div style="display: flex; gap: 0.5em; margin-bottom: 1em;">
     <input type="text" id="watchscribe-regex-%" placeholder="Enter text here" style="flex-grow: 1; padding: 0.4em; border-radius: 4px; border: 1px solid #ccc;">
@@ -869,6 +950,7 @@
         // Reset case-insensitive in case it persists between windows
 
         caseInsensitive = false;
+        regexSendingOverride = false; // Reset the regex sending override
 
         // Create a (most likely) unique ID for the widget
         // just in case html is funky.
@@ -891,10 +973,17 @@
         const toggleBtn = document.getElementById(`toggleBtn-${widgetID}`);
         const silentToggle = document.getElementById(`watchscribe-silent-${widgetID}`);
         const silentLabel = document.getElementById(`labelSilent-${widgetID}`);
+        const buttonContainer = document.getElementById(`watchscribe-button-container-${widgetID}`);
+        const sendingMode = document.getElementById(`watchscribe-sending-mode-${widgetID}`);
 
 
         toggleBtn.parentElement.addEventListener('click', () => {
             commandType = commandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
+
+            updateModeSwitch();
+        });
+
+        const updateModeSwitch = () => {
             isOn = commandType === COMMAND_TYPES.blacklist;
             toggleBtn.classList.toggle('on', isOn);
 
@@ -902,15 +991,13 @@
             labelOff.classList.toggle('active', !isOn);
 
             title.innerHTML = isOn ? "<s>Watch</s> BlacklistScribe" : "WatchScribe";
-        });
+        }
 
         silentToggle.addEventListener('change', () => {
             silent = silentToggle.checked;
             if (silent) {
-                toggleBtn.classList.add('silent');
                 silentLabel.textContent = "Silent (!!/command-)";
             } else {
-                toggleBtn.classList.remove('silent');
                 silentLabel.textContent = "No hyphen (!!/command)";
             }
         });
@@ -923,15 +1010,20 @@
             messages.forEach(message => sendMessage(message));
         });
 
-        addButton.addEventListener('click', () => {
+        const addFromInputField = () => {
             let message = regexInput.value;
-
             if (!message) {
                 alert("No message entered!");
                 return;
             }
             const regexes = generateFor(message);
             regexes.forEach(regex => createListItem(regexList, regex));
+
+        }
+
+        addButton.addEventListener('click', () => {
+            addFromInputField();
+
         });
 
         sendAsIsButton.addEventListener('click', () => {
@@ -950,14 +1042,127 @@
 
         generateButton.addEventListener('click', () => generateRegexes(regexList));
 
-        document.addEventListener('keydown', (e) => {
+        const toggleButtonsContainer = () => {
+            if (buttonContainer.style.display === "none") {
+                buttonContainer.style.display = "";
+                sendingMode.style.display = "none"; // Hide the sending mode message
+            } else {
+                buttonContainer.style.display = "none";
+                sendingMode.style.display = ""; // Show the sending mode message
+            }
+        }
+
+        function keyboardShortcuts(e) {
             const tag = e.target.tagName;
+
+            if (regexSendingOverride && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                if (e.key !== 'Escape') {
+                    e.preventDefault(); // Prevent default behavior for all keys except Escape
+                    e.stopImmediatePropagation();
+                }
+
+                if (e.key === "]") {
+                    // If the user presses ], disable the regex sending override
+                    regexSendingOverride = false; // Reset the override flag
+                    hideSendShortcuts(regexList); // Hide the send shortcuts
+                    toggleButtonsContainer(); // Toggle the buttons container
+                    return;
+                } else if (LETTERING_ORDER.includes(e.key.toUpperCase())) {
+                    // If the user presses a letter in LETTERING_ORDER, send the corresponding regex
+                    // if present
+                    const index = LETTERING_ORDER.indexOf(e.key.toUpperCase());
+                    if (index < regexList.children.length) {
+                        const item = regexList.children[index];
+                        if (item && item.querySelector('.ws-code')) {
+                            const command = item.querySelector('.ws-code').textContent;
+                            sendMessage(command);
+                            item.querySelector('.ws-send-shortcut').remove(); // Remove the shortcut after sending
+                            item.querySelector('.ws-send-button').style.display = "none"; // Hide the send button
+                        } else {
+                            console.warn(`No regex found for key: ${e.key}`);
+                        }
+                    }
+                } else if (e.key === 'Tab') {
+                    // Send all regexes when the user presses Tab
+                    let messages = Array.from(regexList.querySelectorAll('code')).map(el => el.textContent);
+                    messages.forEach(message => sendMessage(message));
+                    hideSendShortcuts(regexList); // Hide the send shortcuts after sending
+                    regexSendingOverride = false; // Reset the override flag
+                    // Hide all send buttons
+                    Array.from(regexList.querySelectorAll('.ws-send-button')).forEach(button => {
+                        button.style.display = "none";
+                    });
+                } else if (e.key === 'Enter') {
+                    // If the user presses Enter, send the first regex in the list
+                    // and then remove the sent regex from the list
+                    if (regexList.children.length > 0) {
+                        const firstItem = regexList.children[0];
+                        if (firstItem && firstItem.querySelector('.ws-code')) {
+                            const command = firstItem.querySelector('.ws-code').textContent;
+                            sendMessage(command);
+                            firstItem.remove(); // Remove the sent regex from the list
+                            hideSendShortcuts(regexList);
+                            showSendShortcuts(regexList); // Update the send shortcuts
+
+                        } else {
+                            alert("No regex found to send.");
+                        }
+                    }
+                }
+
+                return;
+            }
+
             if (e.key === 'Shift' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
                 generateButton.innerText = "Generate Regex (case insensitive - `?-i:`)";
                 caseInsensitive = true;
-
+            } else if (e.key === 'Enter' && tag === 'INPUT' && tag !== 'TEXTAREA') {
+                // Generate regexes when the user presses Enter in the input field
+                e.preventDefault(); // Prevent form submission if in a form
+                addFromInputField(); // Call the function to add regexes from the input field
+            } else if (e.key === 'Tab' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                e.preventDefault(); // Prevent default tabbing behavior
+                generateRegexes(regexList); // Generate regexes on tab press    
+            } else if (e.key.toLowerCase() === 'w' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // If the user presses 'w', switch to watch mode
+                e.preventDefault(); // Prevent default behavior
+                commandType = COMMAND_TYPES.watch;
+                updateModeSwitch(); // Update the mode switch
+            } else if (e.key.toLowerCase() === 'b' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // If the user presses 'b', switch to blacklist mode
+                e.preventDefault(); // Prevent default behavior
+                commandType = COMMAND_TYPES.blacklist;
+                updateModeSwitch(); // Update the mode switch
+            } else if (e.key.toLowerCase() === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // If the user presses '/', toggle the command type
+                e.preventDefault(); // Prevent default behavior
+                commandType = commandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
+                updateModeSwitch(); // Update the mode switch
+            } else if (e.key.toLowerCase() === '-' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // If the user presses '-', toggle the silent mode
+                e.preventDefault(); // Prevent default behavior
+                silent = !silent;
+                silentToggle.checked = silent; // Update the checkbox state
+                silentLabel.textContent = silent ? "Silent (!!/command-)" : "No hyphen (!!/command)";
+            } else if (e.key.toLowerCase() === ']' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // Enable sending either all or specific regexes to chat
+                // but only if there's at least one regex in the list
+                if (regexList.children.length === 0) {
+                    alert("No regexes to send! Generate some first.");
+                    return;
+                }
+                regexSendingOverride = true; // Set the override flag
+                showSendShortcuts(regexList); // Show the send shortcuts
+                toggleButtonsContainer(); // Toggle the buttons container
             }
-        });
+        }
+
+        document.addEventListener('keydown', keyboardShortcuts, true); // Use capture phase to ensure it runs before the keyboard shortcuts
+        // of FIRE
+
+        document.addEventListener('fire-popup-closing', () => {
+            document.removeEventListener('keydown', keyboardShortcuts, true); // Clean up the event listener
+        })
 
         document.addEventListener('keyup', (e) => {
             const tag = e.target.tagName;
