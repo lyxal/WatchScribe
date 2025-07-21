@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.12.2
+// @version      0.12.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -431,6 +431,7 @@
                 editInput.value = command;
                 editInput.style.display = 'inline-block';
                 regexHTML.style.display = 'none';
+                sendButton.style.display = "none"; // Hide send button while editing
                 editButton.textContent = "✔️"; // Change button to save icon
             }
         });
@@ -865,6 +866,10 @@
 
     // When the fire popup is opened, insert the widget
     window.addEventListener("fire-popup-open", function () {
+        // Reset case-insensitive in case it persists between windows
+
+        caseInsensitive = false;
+
         // Create a (most likely) unique ID for the widget
         // just in case html is funky.
         const widgetID = Math.random().toString(36).substring(7)
