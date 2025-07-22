@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.13.0
+// @version      0.14.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -489,6 +489,27 @@
         forList.appendChild(listItem);
     }
 
+    /**
+     * @param {string[]} linkParts
+     * @returns {boolean} Whether the text could be an ID
+     */
+    function couldContainID(linkParts) {
+        // Don't bother checking if it's only the domain and no path
+        if (linkParts.length === 1) { return false; }
+
+        if (linkParts.length === 2) {
+            // If the link has only two parts, IDs are probably:
+            // 1. A number (e.g. "12345")
+            // 2. A hash-like string _if_ the domain is short enough
+
+            return /^[0-9]+$/.test(linkParts[1]) || (linkParts[1].length <= 10 && /[a-zA-Z0-9_-]{4,15}/.test(linkParts[1]));
+        }
+
+        if (linkParts.length > 2) {
+            return /[a-zA-Z0-9_-]{6,12}/.test(linkParts[linkParts.length - 1])
+        }
+
+    }
 
 
     /**
@@ -562,6 +583,23 @@
             const text = selectedElement.innerText;
             const textRegexes = generateForText(text);
             textRegexes.push(...generateForText(selectedText)); // Add the selected text regexes as well
+
+            const linkComponents = url.split("/");
+
+            // Automatic ID detection
+            if (couldContainID(linkComponents.slice(2))) {
+                // Special case for wrapping potential IDs in a regex with a comment indicating
+                // it's an ID from a site.
+                const regexSafeID = linkComponents[linkComponents.length - 1].replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
+                textRegexes.push(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`);
+            }
+
+            // More manual ID detection
+            if (url === text && linkComponents[linkComponents.length - 1].includes(selectedText) && !selectedText.includes("/")) {
+                // Typically, if you're specifically selecting the end of a URL, it's going to be an ID
+                const regexSafeID = selectedText.replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
+                textRegexes.push(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`);
+            }
 
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
