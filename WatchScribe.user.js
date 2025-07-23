@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.14.0
+// @version      0.15.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -12,7 +12,8 @@
 // @match       *://chat.stackexchange.com/rooms/11540/*
 // @match       *://chat.meta.stackexchange.com/rooms/*
 // @match       *://chat.stackoverflow.com/rooms/*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
 (() => {
@@ -33,6 +34,25 @@
 
     const DONT_ACTUALLY_SEND_THIS_IS_DEBUG_MODE_FLAG = false;
 
+    const SCRIPT_VERSION = "0.15.0";
+
+    const COMMAND_SUBTYPES = {
+        url: "url",
+        text: "text",
+        number: "number",
+        username: "username"
+    }
+
+    class GeneratedCommand {
+        /**
+         * @param {string} regex 
+         * @param {COMMAND_SUBTYPES} originalType 
+         */
+        constructor(regex, originalType) {
+            this.regex = regex;
+            this.originalType = originalType; // "url", "text", or "number"
+        }
+    }
 
     /**
      * Send a message to chat
@@ -78,7 +98,7 @@
     /**
      * Generate potentially multiple regexes for a given URL
      * @param {string} url 
-     * @returns {string[]} Regexes for the URL
+     * @returns {GeneratedCommand[]} Regexes for the URL
      */
     function generateForURL(url) {
         let regexes = [];
@@ -133,24 +153,14 @@
         }
 
         // Push a regex for the full domain, escaping the "."
-        regexes.push(`${hostname}\\.${tldFull}`);
-        regexes.push(`${hostname}\\.${tldDivided}`);
+        regexes.push(new GeneratedCommand(`${hostname}\\.${tldFull}`, COMMAND_SUBTYPES.url));
+        regexes.push(new GeneratedCommand(`${hostname}\\.${tldDivided}`, COMMAND_SUBTYPES.url));
 
         // Push the hostname without the TLD, using a negative lookahead
-        regexes.push(`${hostname}(?!\\.${tldFull})`);
-        regexes.push(`${hostname}(?!\\.${tldDivided})`);
+        regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldFull})`, COMMAND_SUBTYPES.url));
+        regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldDivided})`, COMMAND_SUBTYPES.url));
 
-        commands = [];
-
-        for (let regex of regexes) {
-            if (commandType === COMMAND_TYPES.blacklist) {
-                commands.push(`!!/blacklist-url${silent ? "-" : ""} ${regex}`);
-            } else {
-                commands.push(`!!/watch${silent ? "-" : ""} ${regex}`);
-            }
-        }
-
-        return commands;
+        return regexes;
     }
 
     /**
@@ -168,11 +178,11 @@
 
         if (caseInsensitive) {
             // If case-insensitive mode is enabled, add a case-insensitive version
-            regexes.push(`(?-i:${safetext.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`);
+            regexes.push(new GeneratedCommand(`(?-i:${safetext.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`, COMMAND_SUBTYPES.text));
 
         } else {
             // Otherwise, just use the default regex
-            regexes.push(defaultRegex);
+            regexes.push(new GeneratedCommand(defaultRegex, COMMAND_SUBTYPES.text));
         }
 
 
@@ -311,7 +321,7 @@
      * Phone number watching uses
      * a different checking format than regexes.
      * @param {string} number The phone number to generate a command for
-     * @returns {string[]} Possible commands for the phone number
+     * @returns {GeneratedCommand[]} Possible commands for the phone number
      */
     function generateForNumber(number) {
         const normalised = normaliseNumber(number);
@@ -321,9 +331,9 @@
 
         if (justNumbers.length == 10) {
             // 10 digits, so add an option for it to be a non-american number
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers}(?#NO NorAm)`);
+            regexes.push(new GeneratedCommand(`${justNumbers}(?#NO NorAm)`, COMMAND_SUBTYPES.number));
             // As well as the normal 10 digit number
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} +1-${justNumbers}(?#IS NorAm)`);
+            regexes.push(new GeneratedCommand(`+1-${justNumbers}(?#IS NorAm)`, COMMAND_SUBTYPES.number));
         }
 
         // 11 digit numbers starting with a 0 can be written
@@ -331,7 +341,7 @@
         // number. Therefore, add an option for the short version
         // but add the context back via No NorAm.
         if (justNumbers.startsWith("0") && justNumbers.length == 11) {
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(1)}(?#NO NorAm)`);
+            regexes.push(new GeneratedCommand(`${justNumbers.slice(1)}(?#NO NorAm)`, COMMAND_SUBTYPES.number));
         }
 
         // 12 digit numbers starting with 91 have the same problem.
@@ -340,10 +350,10 @@
         // consistency please.
 
         if (justNumbers.startsWith("91") && justNumbers.length == 12) {
-            regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers.slice(2)}(?#NO NorAm)`);
+            regexes.push(new GeneratedCommand(`${justNumbers.slice(2)}(?#NO NorAm)`, COMMAND_SUBTYPES.number));
         }
 
-        regexes.push(`!!/${commandType}-number${silent ? "-" : ""} ${justNumbers}`);
+        regexes.push(new GeneratedCommand(`${justNumbers}`, COMMAND_SUBTYPES.number));
 
 
         return regexes;
@@ -372,28 +382,26 @@
         }
         // Otherwise, it's normal text
         else {
-            regexes = generateForText(input);
-            if (commandType === COMMAND_TYPES.blacklist) {
-                return regexes.map(regex => `!!/blacklist-keyword${silent ? "-" : ""} ${regex}`);
-            }
-            return regexes.map(regex => `!!/watch${silent ? "-" : ""} ${regex}`);
+            return generateForText(input);
         }
     }
 
     /**
      * Add a watch command to the list of commands that can be sent to chat
      * @param {HTMLElement} forList The HTML element to append the command to
-     * @param {string} message The message to append
+     * @param {GeneratedCommand} message The message to append
      */
     function createListItem(forList, message) {
         // Add prefix if needed
-        let command = (!message.startsWith(`!!/${commandType}`)
-            ? `!!/${commandType}${silent ? "-" : ""} `
-            : "") + message;
+        let command = commandFrom(commandType, message.regex, message.originalType, silent);
 
         // Create list item wrapper
         const listItem = document.createElement('li');
         listItem.className = 'ws-list-item';
+        listItem.setAttribute('data-type', message.originalType);
+        listItem.setAttribute('data-mode', commandType);
+        listItem.setAttribute('data-silent', silent ? 'true' : 'false');
+        listItem.setAttribute('data-regex', message.regex); // Store the command for easy access
 
         // Inner container
         const itemHTML = document.createElement('div');
@@ -433,11 +441,31 @@
             if (editing) {
                 // Save
                 command = editInput.value;
+                listItem.setAttribute('data-command', command);
                 regexHTML.textContent = command;
                 regexHTML.style.display = 'inline';
                 editInput.style.display = 'none';
                 editButton.textContent = "✏️";
                 sendButton.style.display = "inline"; // Show again if edited
+
+                const newParts = command.split(' ')[0].split('/')[1].split('-');
+                const newMode = newParts[0];
+                const newType = newParts[1] || 'text';
+                const newSilent = newParts.length == 3;
+                const newRegex = command.split(' ', 1)[1];
+
+
+                listItem.setAttribute('data-mode', newMode);
+                if (newMode === COMMAND_TYPES.blacklist) {
+                    watchifyButton.textContent = "👀ify"; // Change button to watchify
+                    listItem.setAttribute('data-type', newType);
+                } else {
+                    watchifyButton.textContent = "⬛ify"; // Change button to blacklistify
+                    // Don't overwrite the type if going from blacklist to watch
+                    // as it could be retrieved later
+                }
+                listItem.setAttribute('data-silent', newSilent ? 'true' : 'false');
+                listItem.setAttribute('data-regex', newRegex); // Update the stored regex                
             } else {
                 // Begin editing
                 editInput.value = command;
@@ -453,18 +481,16 @@
         anchorButton.textContent = "⛓️"; // Or "Anchor"
         anchorButton.title = "Anchor this regex (wrap in ^ and $)";
         anchorButton.addEventListener('click', () => {
-            let currentCommand = editInput.style.display === 'inline-block' ? editInput.value : regexHTML.textContent
-            // Split the command into prefix and regex parts
-            let [prefix, ...regexParts] = currentCommand.split(' ');
-            let regex = regexParts.join(' ');
-            // If the regex already starts with ^ and ends with $, just remove them
-            if (regex.startsWith('^') && regex.endsWith('$')) {
-                regex = regex.slice(1, -1);
+            let command = listItem.getAttribute('data-command') || regexHTML.textContent;
+            if (command.startsWith("^") && command.endsWith("$")) {
+                // Already anchored, remove anchors
+                command = command.slice(1, -1);
             } else {
-                regex = `^${regex}$`;
+                // Add anchors
+                command = `^${command}$`;
             }
-            editInput.value = `${prefix} ${regex}`;
-            regexHTML.textContent = `${prefix} ${regex}`;
+            listItem.setAttribute('data-command', command);
+            regexHTML.innerHTML = commandFrom(listItem.getAttribute('data-mode'), command, listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
         });
         anchorButton.className = 'ws-anchor-button';
         anchorButton.style.display = command.split(' ')[0].includes("number") ? 'none' : 'inline-block'; // Hide for number commands
@@ -478,16 +504,51 @@
             listItem.remove();
         });
 
+        // 👀ify/⬛ify Watchify/Blacklistify button (toggle the command mode)
+
+        const WATCHIFY_TEXT = "👀ify";
+        const BLACKLISTIFY_TEXT = "⬛ify";
+
+        const watchifyButton = document.createElement('button');
+        watchifyButton.textContent = listItem.getAttribute('data-mode') === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT;
+        watchifyButton.className = 'ws-watchify-button';
+        watchifyButton.title = "Toggle between Watch and Blacklist commands";
+        const toggle = () => {
+            // Toggle the command type
+            let myCommandType = listItem.getAttribute('data-mode') || COMMAND_TYPES.watch;
+            myCommandType = myCommandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
+            listItem.setAttribute('data-mode', myCommandType);
+            // Update the button text
+            watchifyButton.textContent = myCommandType === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT;
+            // Update the regex display
+            regexHTML.innerHTML = commandFrom(myCommandType, listItem.getAttribute('data-regex'), listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
+        }
+        watchifyButton.addEventListener('click', toggle);
+
+
         // Assemble
         itemHTML.appendChild(regexHTML);
         itemHTML.appendChild(editInput);
         itemHTML.appendChild(sendButton);
         itemHTML.appendChild(editButton);
         itemHTML.appendChild(anchorButton); // Add anchor button
+        itemHTML.appendChild(watchifyButton); // Add watchify button
         itemHTML.appendChild(removeButton); // Add last for UI spacing
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
+        return [listItem, toggle];
     }
+
+    function commandFrom(mode, regex, type, silent) {
+        if (type === COMMAND_SUBTYPES.number) {
+            return `!!/${mode}-${type}${silent ? "-" : ""} ${regex}`;
+        } else if (mode === COMMAND_TYPES.watch) {
+            return `!!/${mode}${silent ? "-" : ""} ${regex}`;
+        } else {
+            return `!!/${mode}-${type}${silent ? "-" : ""} ${regex}`;
+        }
+    }
+
 
     /**
      * @param {string[]} linkParts
@@ -515,7 +576,7 @@
     /**
      * Generate all regexes for selected text, and render them as list items
      * @param {HTMLElement} list The list element to append the regexes to
-     * @returns void
+     * @returns {HTMLElement[]} An array of list items containing the generated regexes
      */
     function generateRegexes(list) {
 
@@ -591,25 +652,19 @@
                 // Special case for wrapping potential IDs in a regex with a comment indicating
                 // it's an ID from a site.
                 const regexSafeID = linkComponents[linkComponents.length - 1].replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
-                textRegexes.push(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`);
+                textRegexes.push(new GeneratedCommand(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`, COMMAND_SUBTYPES.text));
             }
 
             // More manual ID detection
             if (url === text && linkComponents[linkComponents.length - 1].includes(selectedText) && !selectedText.includes("/")) {
                 // Typically, if you're specifically selecting the end of a URL, it's going to be an ID
                 const regexSafeID = selectedText.replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
-                textRegexes.push(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`);
+                textRegexes.push(new GeneratedCommand(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`, COMMAND_SUBTYPES.text));
             }
 
             // Regexes for the anchor text IF it's not a URL
             if (!/[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+/.test(selectedText)) {
-                for (let textRegex of textRegexes) {
-                    if (commandType === COMMAND_TYPES.blacklist) {
-                        regexes.push(`!!/blacklist-keyword- ${textRegex}`);
-                    } else {
-                        regexes.push(textRegex);
-                    }
-                }
+                regexes = regexes.concat(textRegexes);
             }
 
             // Regexes for the URL
@@ -628,11 +683,7 @@
 
             if (processedHostname.match(processedText)) {
                 for (let textRegex of textRegexes) {
-                    if (commandType === COMMAND_TYPES.blacklist) {
-                        regexes.push(`!!/blacklist-url${silent ? "-" : ""} ${textRegex}(?!\\.${tld})`);
-                    } else {
-                        regexes.push(`!!/watch${silent ? "-" : ""} ${textRegex}(?!\\.${tld})`);
-                    }
+                    regexes.push(new GeneratedCommand(`${textRegex}(?!\\.${tld})`, COMMAND_SUBTYPES.url));
                 }
             }
         } else if (selectedElement && selectedElement.tagName === 'A' && selectedElement.classList.contains('fire-user-name')) {
@@ -643,24 +694,37 @@
             const usernameRegexes = generateForText(username);
             caseInsensitive = originalCaseInsensitive; // Reset case-insensitive flag
             for (let usernameRegex of usernameRegexes) {
-                if (commandType === COMMAND_TYPES.blacklist) {
-                    regexes.push(`!!/blacklist-username${silent ? "-" : ""} ${usernameRegex}`);
-                } else {
-                    regexes.push(`!!/watch${silent ? "-" : ""} ${usernameRegex}`);
-                }
+                regexes.push(new GeneratedCommand(usernameRegex, COMMAND_SUBTYPES.username));
             }
 
         } else {
             regexes = generateFor(selectedText);
         }
 
-        regexes = [...new Set(regexes)]; // Remove duplicates
+        console.log("Before deduplication, regexes:", regexes);
+        regexes = uniqueBy(regexes, r => r.regex);
         console.log("Generated regexes:", regexes);
 
+        const madeItems = [];
         for (let regex of regexes) {
-            createListItem(list, regex);
+            const made = createListItem(list, regex);
+            madeItems.push(made);
         }
+
+        return madeItems;
     }
+
+    // Helper function to uniquify a list
+    function uniqueBy(list, keyFn) {
+        const seen = new Set();
+        return list.filter(item => {
+            const key = keyFn(item);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
 
     /**
      * Show send shortcuts for the given list element.
@@ -771,6 +835,17 @@
   </div>
 
   <ul id="watchscribe-regexes-%" style="padding-left: 1.2em; list-style-type: disc;"></ul>
+
+  <a id="watchscribe-version-%" href="#" target="_blank" title="Userscript version" style="
+      font-size: 0.75em;
+      color: #beedab;
+      margin-top: 6px;
+      padding-top: 2px;
+      line-height: 1.2;
+      transition: color 0.2s ease;
+    ">
+      v<span id="watchscribe-version-number-%">?</span>
+    </a>
 </div>
 `;
 
@@ -912,7 +987,7 @@
   border: none;
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 0.85em;
+  font-size: 0.75em;
   cursor: pointer;
   margin-left: 1em;
   transition: background-color 0.3s ease;
@@ -928,7 +1003,7 @@
   border: none;
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 0.85em;
+  font-size: 0.75em;
   cursor: pointer;
   margin-left: 0.5em;
   transition: background-color 0.3s ease;
@@ -940,7 +1015,7 @@
 
 .ws-edit-input {
   font-family: monospace;
-  font-size: 0.9em;
+  font-size: 0.75em;
   padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid #aaa;
@@ -958,7 +1033,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 0.9em;
+  font-size: 0.75em;
 }
 .ws-remove-button:hover {
   background: #cc0000;
@@ -972,10 +1047,24 @@
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 0.9em;
+  font-size: 0.75em;
 }
 .ws-anchor-button:hover {
   background: #0056b3;
+}
+
+.ws-watchify-button {
+  background: #6a0563;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.75em;
+}
+.ws-watchify-button:hover {
+  background: #8b0a7c;
 }
 </style>
 `
@@ -996,6 +1085,8 @@
         const reportedPostDiv = document.querySelector('.fire-reported-post');
         reportedPostDiv.insertAdjacentHTML('afterend', widgetHTML.replace(/%/g, widgetID));
         commandType = COMMAND_TYPES.watch; // Reset the command type to watch
+        silent = GM_getValue('silent', true); // Get the silent mode from storage
+        let lastGeneratedItems = [];
 
         // Get the various components of the widget
         const generateButton = document.getElementById(`watchscribe-button-${widgetID}`);
@@ -1013,6 +1104,7 @@
         const silentLabel = document.getElementById(`labelSilent-${widgetID}`);
         const buttonContainer = document.getElementById(`watchscribe-button-container-${widgetID}`);
         const sendingMode = document.getElementById(`watchscribe-sending-mode-${widgetID}`);
+        const versionNumber = document.getElementById(`watchscribe-version-number-${widgetID}`);
 
 
         toggleBtn.parentElement.addEventListener('click', () => {
@@ -1020,6 +1112,9 @@
 
             updateModeSwitch();
         });
+
+        // Set the version number
+        versionNumber.textContent = GM_info.script.version;
 
         const updateModeSwitch = () => {
             isOn = commandType === COMMAND_TYPES.blacklist;
@@ -1031,14 +1126,22 @@
             title.innerHTML = isOn ? "<s>Watch</s> BlacklistScribe" : "WatchScribe";
         }
 
+        const SILENT_MODE_ON = "Silent (!!/command-)";
+        const SILENT_MODE_OFF = "No hyphen (!!/command)";
+
         silentToggle.addEventListener('change', () => {
             silent = silentToggle.checked;
             if (silent) {
-                silentLabel.textContent = "Silent (!!/command-)";
+                silentLabel.textContent = SILENT_MODE_ON;
             } else {
-                silentLabel.textContent = "No hyphen (!!/command)";
+                silentLabel.textContent = SILENT_MODE_OFF;
             }
+            GM_setValue('silent', silent);
         });
+
+        // Set the initial state of the silent toggle
+        silentToggle.checked = silent;
+        silentLabel.textContent = silent ? SILENT_MODE_ON : SILENT_MODE_OFF;
 
         clearButton.addEventListener('click', () => regexList.innerHTML = "");
 
@@ -1055,8 +1158,11 @@
                 return;
             }
             const regexes = generateFor(message);
-            regexes.forEach(regex => createListItem(regexList, regex));
-
+            lastGeneratedItems = [];
+            for (let regex of regexes) {
+                const made = createListItem(regexList, regex);
+                lastGeneratedItems.push(made);
+            }
         }
 
         addButton.addEventListener('click', () => {
@@ -1071,14 +1177,15 @@
                 alert("No message entered!");
                 return;
             }
-            sendMessage(`!!/${commandType}${silent ? "-" : ""} ${message}`);
+            sendMessage(`!!/${commandType}${commandType === COMMAND_TYPES.blacklist ? "-text" : ""}${silent ? "-" : ""} ${message}`);
         });
 
         regexInput.addEventListener('keydown', (e) => {
             e.stopPropagation();
         });
 
-        generateButton.addEventListener('click', () => generateRegexes(regexList));
+        generateButton.addEventListener('click', () =>
+            lastGeneratedItems = generateRegexes(regexList));
 
         const toggleButtonsContainer = () => {
             if (buttonContainer.style.display === "none") {
@@ -1160,7 +1267,21 @@
                 addFromInputField(); // Call the function to add regexes from the input field
             } else if (e.key === 'Tab' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
                 e.preventDefault(); // Prevent default tabbing behavior
-                generateRegexes(regexList); // Generate regexes on tab press    
+                lastGeneratedItems = generateRegexes(regexList); // Generate regexes on tab press
+            } else if (e.key === "`" && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                e.preventDefault();
+                // Watchify/Blacklistify the last generated regexes
+                if (lastGeneratedItems.length === 0) {
+                    alert("No regexes generated yet! Generate some first.");
+                    return;
+                }
+
+                lastGeneratedItems.forEach((item) => {
+                    const callback = item[1]; // Get the toggle callback
+                    if (callback) {
+                        callback(); // Call the toggle function to switch mode
+                    }
+                });
             } else if (e.key.toLowerCase() === 'w' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
                 // If the user presses 'w', switch to watch mode
                 e.preventDefault(); // Prevent default behavior
@@ -1192,6 +1313,12 @@
                 regexSendingOverride = true; // Set the override flag
                 showSendShortcuts(regexList); // Show the send shortcuts
                 toggleButtonsContainer(); // Toggle the buttons container
+            } else if (e.key.toLowerCase() === 'c' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // If the user presses 'c', clear the regex list
+                e.preventDefault(); // Prevent default behavior
+                regexList.innerHTML = ""; // Clear the list
+                lastGeneratedItems = []; // Reset the last generated items
+                hideSendShortcuts(regexList); // Hide the send shortcuts
             }
         }
 
