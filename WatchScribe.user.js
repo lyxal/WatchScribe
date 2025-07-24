@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.15.2
+// @version      0.15.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -836,7 +836,7 @@
 
   <ul id="watchscribe-regexes-%" style="padding-left: 1.2em; list-style-type: disc;"></ul>
 
-  <a id="watchscribe-version-%" href="#" target="_blank" title="Userscript version" style="
+  <a id="watchscribe-version-%" href="https://github.com/lyxal/WatchScribe/raw/refs/heads/main/WatchScribe.user.js" target="_blank" title="Userscript version" style="
       font-size: 0.75em;
       color: #beedab;
       margin-top: 6px;
@@ -1200,6 +1200,11 @@
         function keyboardShortcuts(e) {
             const tag = e.target.tagName;
 
+            if (e.altKey || e.ctrlKey || e.metaKey) {
+                // Do nothing if any of the Alt, Ctrl, or Meta keys are pressed
+                return;
+            }
+
             if (regexSendingOverride && tag !== 'INPUT' && tag !== 'TEXTAREA') {
                 if (e.key !== 'Escape') {
                     e.preventDefault(); // Prevent default behavior for all keys except Escape
@@ -1313,7 +1318,7 @@
                 regexSendingOverride = true; // Set the override flag
                 showSendShortcuts(regexList); // Show the send shortcuts
                 toggleButtonsContainer(); // Toggle the buttons container
-            } else if (e.key.toLowerCase() === 'x' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+            } else if (e.key.toLowerCase() === 'c' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
                 // If the user presses 'c', clear the regex list
                 e.preventDefault(); // Prevent default behavior
                 regexList.innerHTML = ""; // Clear the list
