@@ -107,4 +107,4 @@ Additionally:
 * <kbd>Enter</kbd> (when inside custom text box) Generate from input box
 * <kbd>]</kbd> Enable/Disable keyboard shortcut regex sending
 * <kbd>`</kbd> Toggle the last generated regex(es) between watch and blacklist mode
-* <kbd>c</kbd> Clear the regex list
+* <kbd>x</kbd> Clear the regex list
