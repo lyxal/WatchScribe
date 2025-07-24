@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.15.1
+// @version      0.15.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -1313,7 +1313,7 @@
                 regexSendingOverride = true; // Set the override flag
                 showSendShortcuts(regexList); // Show the send shortcuts
                 toggleButtonsContainer(); // Toggle the buttons container
-            } else if (e.key.toLowerCase() === 'c' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+            } else if (e.key.toLowerCase() === 'x' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
                 // If the user presses 'c', clear the regex list
                 e.preventDefault(); // Prevent default behavior
                 regexList.innerHTML = ""; // Clear the list
