@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.15.3
+// @version      0.15.4
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -170,10 +170,21 @@
      */
     function generateForText(text) {
         let regexes = [];
-        let safetext = text.replace(/([()[{*+.$^\\|?\]])/g, '\\$1'); // Escape special regex characters
+        // Replace spaces with non-word gaps
+        let words = text.split(/ +/);
+        let defaultRegex = "";
 
-        // Graciously stolen from Ryan M's bookmarklet: https://chat.stackexchange.com/transcript/11540?m=66059405#66059405
-        let defaultRegex = safetext.trim().toLowerCase().replaceAll(" ", "[\\W_]*+");
+        let makeSafe = (str) => str.replace(/([()[{*+.$^\\|?\]])/g, '\\$1');
+
+        if (words.length > 1) {
+            for (let word of words.slice(1)) {
+                let sigil = /\W/.test(word[0]);
+                defaultRegex += `[\\W_]*${sigil ? "" : "+"}${makeSafe(word)}`;
+            }
+            defaultRegex = `${makeSafe(words[0])}${defaultRegex}`;
+        } else {
+            defaultRegex = makeSafe(words[0]);
+        }
 
 
         if (caseInsensitive) {
