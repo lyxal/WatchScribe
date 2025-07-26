@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.1
+// @version      0.16.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -206,7 +206,7 @@
 
         if (caseInsensitive) {
             // If case-insensitive mode is enabled, add a case-insensitive version
-            regexes.push(new GeneratedCommand(`(?-i:${safetext.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`, COMMAND_SUBTYPES.text, description));
+            regexes.push(new GeneratedCommand(`(?-i:${makeSafe(text).trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`, COMMAND_SUBTYPES.text, description));
 
         } else {
             // Otherwise, just use the default regex
