@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.15.5(dev)
+// @version      0.16.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -47,10 +47,12 @@
         /**
          * @param {string} regex 
          * @param {COMMAND_SUBTYPES} originalType 
+         * @param {string} description A description of the command, e.g. "Auto-generated regex for a URL"
          */
-        constructor(regex, originalType) {
+        constructor(regex, originalType, description = "") {
             this.regex = regex;
             this.originalType = originalType; // "url", "text", or "number"
+            this.description = description;
         }
     }
 
@@ -153,12 +155,12 @@
         }
 
         // Push a regex for the full domain, escaping the "."
-        regexes.push(new GeneratedCommand(`${hostname}\\.${tldFull}`, COMMAND_SUBTYPES.url));
-        regexes.push(new GeneratedCommand(`${hostname}\\.${tldDivided}`, COMMAND_SUBTYPES.url));
+        regexes.push(new GeneratedCommand(`${hostname}\\.${tldFull}`, COMMAND_SUBTYPES.url, "Normal URL Regex"));
+        regexes.push(new GeneratedCommand(`${hostname}\\.${tldDivided}`, COMMAND_SUBTYPES.url, "URL Regex with Subsequent TLDs Optional"));
 
         // Push the hostname without the TLD, using a negative lookahead
-        regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldFull})`, COMMAND_SUBTYPES.url));
-        regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldDivided})`, COMMAND_SUBTYPES.url));
+        regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldFull})`, COMMAND_SUBTYPES.url, "Hostname without TLD (Full)"));
+        regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldDivided})`, COMMAND_SUBTYPES.url, "Hostname without TLD (Divided)"));
 
         return regexes;
     }
@@ -166,9 +168,9 @@
     /**
      * Generate a regex for arbitrary text. Lowercases and inserts checks for arbitrary spaces/non-word characters
      * @param {string} text The text to generate a regex for
-     * @returns {string[]} Possible regexes for the text
+     * @returns {GeneratedCommand[]} Possible regexes for the text
      */
-    function generateForText(text) {
+    function generateForText(text, description = undefined) {
         let regexes = [];
         // Replace spaces with non-word gaps
         let words = text.split(/ +/);
@@ -179,21 +181,37 @@
         if (words.length > 1) {
             for (let word of words.slice(1)) {
                 let sigil = /\W/.test(word[0]);
-                defaultRegex += `[\\W_]*${sigil ? "" : "+"}${makeSafe(word)}`;
+                defaultRegex += `[\\W_]*${sigil ? "" : "+"}${makeSafe(word.toLowerCase())}`;
             }
-            defaultRegex = `${makeSafe(words[0])}${defaultRegex}`;
+            defaultRegex = `${makeSafe(words[0].toLowerCase())}${defaultRegex}`;
         } else {
-            defaultRegex = makeSafe(words[0]);
+            defaultRegex = makeSafe(words[0].toLowerCase());
         }
+
+        let symbolConsumingRegex = "";
+        if (words.length > 1) {
+            for (let word of words.slice(1)) {
+                let symbolless = word.replace(/\W+/, ""); // Remove all non-word characters
+                if (symbolless.length !== 0) {
+                    // Only add the symbol consuming regex if there are characters left after removing non-word characters
+                    symbolConsumingRegex += `[\\W_]*+${makeSafe(symbolless.toLowerCase())}`;
+                }
+            }
+            symbolConsumingRegex = `${makeSafe(words[0].toLowerCase())}${symbolConsumingRegex}`;
+        } else {
+            symbolConsumingRegex = makeSafe(words[0].toLowerCase()); // Remove all non-word characters
+        }
+
 
 
         if (caseInsensitive) {
             // If case-insensitive mode is enabled, add a case-insensitive version
-            regexes.push(new GeneratedCommand(`(?-i:${safetext.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`, COMMAND_SUBTYPES.text));
+            regexes.push(new GeneratedCommand(`(?-i:${safetext.trim().replaceAll(".", "\\.").replaceAll(" ", "[\\W_]*+")})`, COMMAND_SUBTYPES.text, description));
 
         } else {
             // Otherwise, just use the default regex
-            regexes.push(new GeneratedCommand(defaultRegex, COMMAND_SUBTYPES.text));
+            regexes.push(new GeneratedCommand(defaultRegex, COMMAND_SUBTYPES.text, description));
+            regexes.push(new GeneratedCommand(symbolConsumingRegex, COMMAND_SUBTYPES.text, "Symbol Consuming Text Regex"));
         }
 
 
@@ -342,9 +360,9 @@
 
         if (justNumbers.length == 10) {
             // 10 digits, so add an option for it to be a non-american number
-            regexes.push(new GeneratedCommand(`${justNumbers}(?#NO NorAm)`, COMMAND_SUBTYPES.number));
+            regexes.push(new GeneratedCommand(`${justNumbers}(?#NO NorAm)`, COMMAND_SUBTYPES.number, "10 Digit Phone Number, Assumed to NOT be North American"));
             // As well as the normal 10 digit number
-            regexes.push(new GeneratedCommand(`+1-${justNumbers}(?#IS NorAm)`, COMMAND_SUBTYPES.number));
+            regexes.push(new GeneratedCommand(`+1-${justNumbers}(?#IS NorAm)`, COMMAND_SUBTYPES.number, "10 Digit Phone Number, Assumed to be North American"));
         }
 
         // 11 digit numbers starting with a 0 can be written
@@ -352,7 +370,7 @@
         // number. Therefore, add an option for the short version
         // but add the context back via No NorAm.
         if (justNumbers.startsWith("0") && justNumbers.length == 11) {
-            regexes.push(new GeneratedCommand(`${justNumbers.slice(1)}(?#NO NorAm)`, COMMAND_SUBTYPES.number));
+            regexes.push(new GeneratedCommand(`${justNumbers.slice(1)}(?#NO NorAm)`, COMMAND_SUBTYPES.number, "11 Digit Phone Number, Assumed to NOT be North American"));
         }
 
         // 12 digit numbers starting with 91 have the same problem.
@@ -361,10 +379,10 @@
         // consistency please.
 
         if (justNumbers.startsWith("91") && justNumbers.length == 12) {
-            regexes.push(new GeneratedCommand(`${justNumbers.slice(2)}(?#NO NorAm)`, COMMAND_SUBTYPES.number));
+            regexes.push(new GeneratedCommand(`${justNumbers.slice(2)}(?#NO NorAm)`, COMMAND_SUBTYPES.number, "12 Digit Phone Number, Assumed to NOT be North American"));
         }
 
-        regexes.push(new GeneratedCommand(`${justNumbers}`, COMMAND_SUBTYPES.number));
+        regexes.push(new GeneratedCommand(`${justNumbers}`, COMMAND_SUBTYPES.number, "Default Phone Number Command"));
 
 
         return regexes;
@@ -402,6 +420,7 @@
      * @param {HTMLElement} forList The HTML element to append the command to
      * @param {GeneratedCommand} message The message to append
      */
+    // Updated createListItem function with mobile-responsive button layout
     function createListItem(forList, message) {
         // Add prefix if needed
         let command = commandFrom(commandType, message.regex, message.originalType, silent);
@@ -412,51 +431,70 @@
         listItem.setAttribute('data-type', message.originalType);
         listItem.setAttribute('data-mode', commandType);
         listItem.setAttribute('data-silent', silent ? 'true' : 'false');
-        listItem.setAttribute('data-regex', message.regex); // Store the command for easy access
+        listItem.setAttribute('data-regex', message.regex);
 
-        // Description container - shows why this regex was generated
+        // Description container
         const descriptionContainer = document.createElement('div');
         descriptionContainer.className = 'ws-description-container';
-        descriptionContainer.style.display = 'inline-block';
-        descriptionContainer.style.marginBottom = '0px';
-        descriptionContainer.style.padding = '4px 12px';
-        descriptionContainer.style.backgroundColor = '#f5f5f5';
-        descriptionContainer.style.border = '1px solid #ddd';
-        descriptionContainer.style.borderBottom = 'none';
-        descriptionContainer.style.borderRadius = '8px 8px 0 0';
-        descriptionContainer.style.fontSize = '12px';
-        descriptionContainer.style.color = '#666';
-        descriptionContainer.style.position = 'relative';
-        descriptionContainer.style.zIndex = '1';
+        descriptionContainer.style.cssText = `
+        display: inline-block;
+        margin-bottom: 0px;
+        padding: 4px 8px;
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        font-size: 11px;
+        color: #666;
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        box-sizing: border-box;
+        word-break: break-word;
+    `;
 
-        // Description text (read-only)
         const descriptionText = document.createElement('span');
         descriptionText.className = 'ws-description-text';
         descriptionText.textContent = message.description || 'Auto-generated regex';
-
         descriptionContainer.appendChild(descriptionText);
 
         // Inner container for the existing content
         const itemHTML = document.createElement('div');
         itemHTML.className = 'ws-list-content';
-        itemHTML.style.border = '1px solid #ddd';
-        itemHTML.style.borderRadius = '0 8px 8px 8px';
-        itemHTML.style.padding = '8px';
-        itemHTML.style.backgroundColor = '#fff';
-        itemHTML.style.marginTop = '0px';
+        itemHTML.style.cssText = `
+        display: flex;
+        align-items: flex-start;
+        gap: 0.25em;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        padding: 0.5em;
+        border-radius: 0 8px 8px 8px;
+        font-size: 0.8em;
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+        flex-wrap: wrap;
+        box-sizing: border-box;
+    `;
 
         // Regex display
         const regexHTML = document.createElement('code');
         regexHTML.textContent = command;
         regexHTML.className = 'ws-code';
-        regexHTML.style.display = 'inline-block';
-        regexHTML.style.maxWidth = '100%';
-        regexHTML.style.overflowX = 'auto';
-        regexHTML.style.whiteSpace = 'nowrap';
-        regexHTML.style.padding = '2px 4px';
-        regexHTML.style.backgroundColor = '#f8f8f8';
-        regexHTML.style.border = '1px solid #e0e0e0';
-        regexHTML.style.borderRadius = '3px';
+        regexHTML.style.cssText = `
+        font-family: monospace;
+        background: #e8e8e8;
+        padding: 4px 6px;
+        border-radius: 4px;
+        color: #333;
+        word-break: break-all;
+        overflow-wrap: anywhere;
+        flex: 1;
+        min-width: 0;
+        margin-right: 0.5em;
+        margin-bottom: 1em;
+        overflow-x: auto;
+        font-size: 1em;
+        line-height: 1.3;
+    `;
 
         // Editable input (hidden by default)
         const editInput = document.createElement('input');
@@ -468,32 +506,56 @@
             e.stopPropagation();
         });
 
+        // Create button group container for better mobile layout
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'ws-button-group';
+        buttonGroup.style.cssText = `
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25em;
+        width: 100%;
+    `;
+
+        // Helper function to create buttons with consistent styling
+        const createButton = (text, className, clickHandler, extraStyles = '') => {
+            const button = document.createElement('button');
+            button.textContent = text;
+            button.className = className;
+            button.style.cssText = `
+            flex-shrink: 0;
+            margin: 0 1px;
+            padding: 3px 6px;
+            font-size: 1em;
+            border-radius: 3px;
+            min-width: auto;
+            border: none;
+            cursor: pointer;
+            ${extraStyles}
+        `;
+            button.addEventListener('click', clickHandler);
+            return button;
+        };
+
         // Send button
-        const sendButton = document.createElement('button');
-        sendButton.textContent = "Send to Chat";
-        sendButton.className = 'ws-send-button';
-        sendButton.addEventListener('click', () => {
+        const sendButton = createButton("Send to Chat", 'ws-send-button', () => {
             sendMessage(command);
             sendButton.style.display = "none";
-        });
+        }, 'background-color: #28a745; color: white; flex: 1; min-width: 50px;');
 
         // Edit button
-        const editButton = document.createElement('button');
-        editButton.textContent = "✏️";
-        editButton.className = 'ws-edit-button';
-        editButton.title = "Edit this regex";
-        editButton.addEventListener('click', () => {
-            const editing = editInput.style.display === 'inline-block';
+        const editButton = createButton("✏️", 'ws-edit-button', () => {
+            const editing = editInput.style.display === 'flex' || editInput.style.display === 'block';
             if (editing) {
-                // Save
+                // Save logic here (same as original)
                 command = editInput.value;
                 listItem.setAttribute('data-command', command);
                 regexHTML.textContent = command;
-                regexHTML.style.display = 'inline';
+                regexHTML.style.display = 'block';
                 editInput.style.display = 'none';
                 editButton.textContent = "✏️";
-                sendButton.style.display = "inline"; // Show again if edited
+                sendButton.style.display = "flex";
 
+                // Update attributes logic (same as original)
                 const newParts = command.split(' ')[0].split('/')[1].split('-');
                 const newMode = newParts[0];
                 const newType = newParts[1] || 'text';
@@ -502,88 +564,90 @@
 
                 listItem.setAttribute('data-mode', newMode);
                 if (newMode === COMMAND_TYPES.blacklist) {
-                    watchifyButton.textContent = "👀ify"; // Change button to watchify
+                    watchifyButton.textContent = "👀ify";
                     listItem.setAttribute('data-type', newType);
                 } else {
-                    watchifyButton.textContent = "⬛ify"; // Change button to blacklistify
-                    // Don't overwrite the type if going from blacklist to watch
-                    // as it could be retrieved later
+                    watchifyButton.textContent = "⬛ify";
                 }
                 listItem.setAttribute('data-silent', newSilent ? 'true' : 'false');
-                listItem.setAttribute('data-regex', newRegex); // Update the stored regex                
+                listItem.setAttribute('data-regex', newRegex);
             } else {
                 // Begin editing
                 editInput.value = command;
-                editInput.style.display = 'inline-block';
+                editInput.style.display = 'block';
                 regexHTML.style.display = 'none';
-                sendButton.style.display = "none"; // Hide send button while editing
-                editButton.textContent = "✔️"; // Change button to save icon
+                sendButton.style.display = "none";
+                editButton.textContent = "✔️";
             }
-        });
+        }, 'background-color: #ffc107; color: black; title: "Edit this regex";');
 
-        // Anchor button (⛓️)
-        const anchorButton = document.createElement('button');
-        anchorButton.textContent = "⛓️"; // Or "Anchor"
-        anchorButton.title = "Anchor this regex (wrap in ^ and $)";
-        anchorButton.addEventListener('click', () => {
-            let command = listItem.getAttribute('data-command') || regexHTML.textContent;
-            if (command.startsWith("^") && command.endsWith("$")) {
-                // Already anchored, remove anchors
-                command = command.slice(1, -1);
+        // Anchor button
+        const anchorButton = createButton("⛓️", 'ws-anchor-button', () => {
+            let regex = listItem.getAttribute('data-regex') || regexHTML.textContent;
+            if (regex.startsWith("^") && regex.endsWith("$")) {
+                regex = regex.slice(1, -1);
             } else {
-                // Add anchors
-                command = `^${command}$`;
+                regex = `^${regex}$`;
             }
+            let command = commandFrom(listItem.getAttribute('data-mode'), regex, listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
             listItem.setAttribute('data-command', command);
-            regexHTML.innerHTML = commandFrom(listItem.getAttribute('data-mode'), command, listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
-        });
-        anchorButton.className = 'ws-anchor-button';
-        anchorButton.style.display = command.split(' ')[0].includes("number") ? 'none' : 'inline-block'; // Hide for number commands
+            listItem.setAttribute('data-regex', regex);
+            regexHTML.textContent = command;
+        }, 'background: #007bff; color: white; title: "Anchor this regex";');
 
-        // 🗑 Remove button
-        const removeButton = document.createElement('button');
-        removeButton.textContent = "🗑️"; // Or "Remove"
-        removeButton.className = 'ws-remove-button';
-        removeButton.title = "Remove this regex";
-        removeButton.addEventListener('click', () => {
-            listItem.remove();
-        });
+        // Hide anchor button for number commands
+        if (command.split(' ')[0].includes("number")) {
+            anchorButton.style.display = 'none';
+        }
 
-        // 👀ify/⬛ify Watchify/Blacklistify button (toggle the command mode)
+        // Watchify/Blacklistify button
         const WATCHIFY_TEXT = "👀ify";
         const BLACKLISTIFY_TEXT = "⬛ify";
 
-        const watchifyButton = document.createElement('button');
-        watchifyButton.textContent = listItem.getAttribute('data-mode') === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT;
-        watchifyButton.className = 'ws-watchify-button';
-        watchifyButton.title = "Toggle between Watch and Blacklist commands";
-        const toggle = () => {
-            // Toggle the command type
-            let myCommandType = listItem.getAttribute('data-mode') || COMMAND_TYPES.watch;
-            myCommandType = myCommandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
-            listItem.setAttribute('data-mode', myCommandType);
-            // Update the button text
-            watchifyButton.textContent = myCommandType === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT;
-            // Update the regex display
-            regexHTML.innerHTML = commandFrom(myCommandType, listItem.getAttribute('data-regex'), listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
-        }
-        watchifyButton.addEventListener('click', toggle);
+        const watchifyButton = createButton(
+            listItem.getAttribute('data-mode') === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT,
+            'ws-watchify-button',
+            () => {
+                let myCommandType = listItem.getAttribute('data-mode') || COMMAND_TYPES.watch;
+                myCommandType = myCommandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
+                listItem.setAttribute('data-mode', myCommandType);
+                watchifyButton.textContent = myCommandType === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT;
+                regexHTML.textContent = commandFrom(myCommandType, listItem.getAttribute('data-regex'), listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
+            },
+            'background: #6a0563; color: white; title: "Toggle between Watch and Blacklist commands";'
+        );
 
-        // Assemble
+        // Remove button
+        const removeButton = createButton("🗑️", 'ws-remove-button', () => {
+            listItem.remove();
+        }, 'background: #aa2222; color: white; title: "Remove this regex";');
+
+        // Assemble the item
         itemHTML.appendChild(regexHTML);
         itemHTML.appendChild(editInput);
-        itemHTML.appendChild(sendButton);
-        itemHTML.appendChild(editButton);
-        itemHTML.appendChild(anchorButton); // Add anchor button
-        itemHTML.appendChild(watchifyButton); // Add watchify button
-        itemHTML.appendChild(removeButton); // Add last for UI spacing
 
-        // Add description container first, then the main content
+        // Add buttons to button group
+        buttonGroup.appendChild(sendButton);
+        buttonGroup.appendChild(editButton);
+        buttonGroup.appendChild(anchorButton);
+        buttonGroup.appendChild(watchifyButton);
+        buttonGroup.appendChild(removeButton);
+
+        itemHTML.appendChild(buttonGroup);
+
         listItem.appendChild(descriptionContainer);
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
-        return [listItem, toggle];
+
+        return [listItem, () => {
+            let myCommandType = listItem.getAttribute('data-mode') || COMMAND_TYPES.watch;
+            myCommandType = myCommandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
+            listItem.setAttribute('data-mode', myCommandType);
+            watchifyButton.textContent = myCommandType === COMMAND_TYPES.watch ? BLACKLISTIFY_TEXT : WATCHIFY_TEXT;
+            regexHTML.textContent = commandFrom(myCommandType, listItem.getAttribute('data-regex'), listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
+        }];
     }
+
     function commandFrom(mode, regex, type, silent) {
         if (type === COMMAND_SUBTYPES.number) {
             return `!!/${mode}-${type}${silent ? "-" : ""} ${regex}`;
@@ -687,8 +751,8 @@
         if (selectedElement && selectedElement.tagName === 'SPAN' && selectedElement.classList.contains('watchscribe-link')) {
             const url = selectedElement.getAttribute("data-href");
             const text = selectedElement.innerText;
-            const textRegexes = generateForText(text);
-            textRegexes.push(...generateForText(selectedText)); // Add the selected text regexes as well
+            const textRegexes = generateForText(text, "Displayed Link Text");
+            textRegexes.push(...generateForText(selectedText, "Selected Link Text")); // Add the selected text regexes as well
 
             const linkComponents = url.split("/");
 
@@ -697,14 +761,14 @@
                 // Special case for wrapping potential IDs in a regex with a comment indicating
                 // it's an ID from a site.
                 const regexSafeID = linkComponents[linkComponents.length - 1].replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
-                textRegexes.push(new GeneratedCommand(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`, COMMAND_SUBTYPES.text));
+                textRegexes.push(new GeneratedCommand(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`, COMMAND_SUBTYPES.text, "Potential ID from URL (Auto-detected)"));
             }
 
             // More manual ID detection
             if (url === text && linkComponents[linkComponents.length - 1].includes(selectedText) && !selectedText.includes("/")) {
                 // Typically, if you're specifically selecting the end of a URL, it's going to be an ID
                 const regexSafeID = selectedText.replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
-                textRegexes.push(new GeneratedCommand(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`, COMMAND_SUBTYPES.text));
+                textRegexes.push(new GeneratedCommand(`(?-i:${regexSafeID})(?# ${linkComponents[2]})`, COMMAND_SUBTYPES.text, "Potential ID from URL"));
             }
 
             // Regexes for the anchor text IF it's not a URL
@@ -728,7 +792,7 @@
 
             if (processedHostname.match(processedText)) {
                 for (let textRegex of textRegexes) {
-                    regexes.push(new GeneratedCommand(`${textRegex}(?!\\.${tld})`, COMMAND_SUBTYPES.url));
+                    regexes.push(new GeneratedCommand(`${textRegex}(?!\\.${tld})`, COMMAND_SUBTYPES.url, "Link Text with Negative Lookahead for TLD"));
                 }
             }
         } else if (selectedElement && selectedElement.tagName === 'A' && selectedElement.classList.contains('fire-user-name')) {
@@ -736,11 +800,9 @@
             const username = selectedElement.innerText.trim();
             let originalCaseInsensitive = caseInsensitive;
             caseInsensitive = true; // Always case-insensitive for usernames
-            const usernameRegexes = generateForText(username);
+            const usernameRegexes = generateForText(username, "Username Text");
             caseInsensitive = originalCaseInsensitive; // Reset case-insensitive flag
-            for (let usernameRegex of usernameRegexes) {
-                regexes.push(new GeneratedCommand(usernameRegex, COMMAND_SUBTYPES.username));
-            }
+            regexes = regexes.concat(usernameRegexes);
 
         } else {
             regexes = generateFor(selectedText);
@@ -825,11 +887,11 @@
 
 
     let widgetHTML = `
-<div id="watchscribe-widget-%" style="padding: 1em; margin: 1em; background: #fdfdfd; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-family: sans-serif; z-index: 300;">
-  <div id="watchscribe-header-%" style="font-weight: bold; font-size: 1.2em; margin-bottom: 1em; display: flex; align-items: center; justify-content: space-between;">
-    <h3 style="margin: 0;" id="watchscribe-title-%">WatchScribe</h3>
+<div id="watchscribe-widget-%" class="watchscribe-widget" style="padding: 1em; margin: 1em; background: #fdfdfd; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-family: sans-serif; z-index: 300; max-width: 100%; box-sizing: border-box;">
+  <div id="watchscribe-header-%" class="watchscribe-header" style="font-weight: bold; font-size: 1.2em; margin-bottom: 1em; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1em;">
+    <h3 style="margin: 0; flex: 1; min-width: 120px;" id="watchscribe-title-%" class="watchscribe-title">WatchScribe</h3>
 
-    <div class="toggle-container-%" style="display: flex; align-items: center; gap: 8px;">
+    <div class="toggle-container-%" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
       <span id="labelOff-%" class="toggle-label active">Watch</span>
       <div class="toggle-switch">
         <div class="toggle-slider" id="toggleBtn-%"></div>
@@ -838,7 +900,7 @@
     </div>
   </div>
 
-  <div id="watchscribe-toggle-silent-%" style="margin-bottom: 1em;">
+  <div id="watchscribe-toggle-silent-%" class="watchscribe-toggle-silent" style="margin-bottom: 1em;">
     <label class="toggle-container">
       <input type="checkbox" id="watchscribe-silent-%" checked>
       <span class="checkbox-slider"></span>
@@ -846,15 +908,15 @@
     </label>
   </div>
 
-  <p style="margin-top: 0.5em;">Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
+  <p style="margin-top: 0.5em; font-size: 0.9em; line-height: 1.4;">Select some text, then click the button below to generate possible watch/blacklist regex(es).</p>
 
-  <div style="margin-bottom: 1em;" id="watchscribe-button-container-%">
+  <div style="margin-bottom: 1em; display: flex; flex-wrap: wrap; gap: 0.5em;" id="watchscribe-button-container-%" class="watchscribe-button-container">
     <button id="watchscribe-button-%" class="ws-button">Generate Regex</button>
     <button id="watchscribe-clear-%" class="ws-button">Clear List</button>
     <button id="watchscribe-send-%" class="ws-button">Send All Regexes To Chat</button>
   </div>
 
-    <div id="watchscribe-sending-mode-%" style="
+  <div id="watchscribe-sending-mode-%" class="watchscribe-sending-mode" style="
     display: none;
     margin-bottom: 1em;
     background-color: #f0f4ff;
@@ -871,23 +933,24 @@
         No other FIRE keybindings will work while this is active, except 
         <kbd style="background: #e1e4e8; padding: 2px 6px; border-radius: 3px; border: 1px solid #ccc;">esc</kbd>.
     </em>
-    </div>
-
-  <div style="display: flex; gap: 0.5em; margin-bottom: 1em;">
-    <input type="text" id="watchscribe-regex-%" placeholder="Enter text here" style="flex-grow: 1; padding: 0.4em; border-radius: 4px; border: 1px solid #ccc;">
-    <button id="watchscribe-add-%" class="ws-button">(+)</button>
-    <button id="watchscribe-send-as-is-%" class="ws-button">Prefix + Send</button>
   </div>
 
-  <ul id="watchscribe-regexes-%" style="padding-left: 1.2em; list-style-type: disc;"></ul>
+  <div class="watchscribe-input-container" style="display: flex; gap: 0.5em; margin-bottom: 1em; flex-wrap: wrap;">
+    <input type="text" id="watchscribe-regex-%" class="watchscribe-regex-input" placeholder="Enter text here" style="flex-grow: 1; padding: 0.6em; border-radius: 4px; border: 1px solid #ccc; font-size: 0.9em; min-width: 0; box-sizing: border-box;">
+    <button id="watchscribe-add-%" class="ws-button" style="flex: none; min-width: auto; padding: 0.6em 12px;">(+)</button>
+    <button id="watchscribe-send-as-is-%" class="ws-button" style="flex: none; min-width: auto; white-space: nowrap;">Prefix + Send</button>
+  </div>
 
-  <a id="watchscribe-version-%" href="https://github.com/lyxal/WatchScribe/raw/refs/heads/main/WatchScribe.user.js" target="_blank" title="Userscript version" style="
+  <ul id="watchscribe-regexes-%" class="watchscribe-regexes" style="padding-left: 0; list-style-type: none; margin: 0;"></ul>
+
+  <a id="watchscribe-version-%" class="watchscribe-version" href="https://github.com/lyxal/WatchScribe/raw/refs/heads/main/WatchScribe.user.js" target="_blank" title="Userscript version" style="
       font-size: 0.75em;
       color: #beedab;
       margin-top: 6px;
       padding-top: 2px;
       line-height: 1.2;
       transition: color 0.2s ease;
+      display: block;
     ">
       v<span id="watchscribe-version-number-%">?</span>
     </a>
@@ -895,13 +958,46 @@
 `;
 
     let customCSS = `
-    <style>
-/* Toggle layout */
-.toggle-container {
+    /* Mobile Responsive CSS for WatchScribe */
+<style>
+/* Base responsive styles */
+[id^="watchscribe-widget-"] {
+  padding: 1em;
+  margin: 1em;
+  background: #fdfdfd;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  font-family: sans-serif;
+  z-index: 300;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Header responsive layout */
+[id^="watchscribe-header-"] {
+  font-weight: bold;
+  font-size: 1.2em;
+  margin-bottom: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+
+[id^="watchscribe-title-"] {
+  margin: 0;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Toggle layout responsive */
+[class^="toggle-container-"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9em;
+  flex-shrink: 0;
 }
 
 /* Label styles */
@@ -909,6 +1005,7 @@
   transition: font-weight 0.3s ease, color 0.3s ease;
   font-weight: normal;
   color: gray;
+  white-space: nowrap;
 }
 
 .toggle-label.active {
@@ -943,6 +1040,14 @@
 }
 
 /* Silent toggle checkbox style */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  flex-wrap: wrap;
+}
+
 .toggle-container input[type="checkbox"] {
   display: none;
 }
@@ -956,6 +1061,7 @@
   position: relative;
   vertical-align: middle;
   margin-right: 6px;
+  flex-shrink: 0;
 }
 
 .checkbox-slider::before {
@@ -978,63 +1084,120 @@
   background-color: #4caf50;
 }
 
-/* Button styling */
+/* Button container responsive */
+[id^="watchscribe-button-container-"] {
+  margin-bottom: 1em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+/* Button styling responsive */
 .ws-button {
   background-color: #007bff;
   color: white;
   border: none;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 4px;
   font-size: 0.9em;
   cursor: pointer;
   transition: background-color 0.3s ease;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 100px;
 }
 
 .ws-button:hover {
   background-color: #0056b3;
 }
 
+/* Input field responsive */
+[id^="watchscribe-regex-"] {
+  flex-grow: 1;
+  padding: 0.6em;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 1em;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Input container responsive - target div containing the input and buttons */
+.watchscribe-input-container {
+  display: flex !important;
+  gap: 0.5em !important;
+  margin-bottom: 1em !important;
+  flex-wrap: wrap !important;
+}
+
+/* List item responsive */
 .ws-list-item {
   margin-bottom: 0.5em;
   list-style-type: none;
 }
 
+.ws-description-container {
+  display: inline-block;
+  margin-bottom: 0px;
+  padding: 4px 8px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 11px;
+  color: #666;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+}
+
 .ws-list-content {
   display: flex;
-  align-items: center;
-  gap: 0.5em;
+  align-items: flex-start;
+  gap: 0.25em;
   background: #f5f5f5;
   border: 1px solid #ddd;
-  padding: 0.5em 0.75em;
-  border-radius: 6px;
-  font-size: 0.9em;
+  padding: 0.5em;
+  border-radius: 0 8px 8px 8px;
+  font-size: 1em;
   box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
-  
+  flex-wrap: wrap;
+  box-sizing: border-box;
 }
 
 .ws-code {
   font-family: monospace;
   background: #e8e8e8;
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 4px;
   color: #333;
-  word-break: break-word;
-  width: 60%;
+  word-break: break-all;
   overflow-wrap: anywhere;
-  flex-grow: 1;
-  margin-right: 1em;
+  flex: 1;
+  min-width: 0;
+  margin-right: 0.5em;
   overflow-x: auto;
+  font-size: 1em;
+  line-height: 1.3;
+}
+
+/* Button group for list items */
+.ws-list-content > button {
+  flex-shrink: 0;
+  margin: 0 1px;
+  padding: 3px 6px;
+  font-size: 1em;
+  border-radius: 3px;
+  min-width: auto;
 }
 
 .ws-send-button {
   background-color: #28a745;
   color: white;
   border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75em;
   cursor: pointer;
-  margin-left: 1em;
   transition: background-color 0.3s ease;
 }
 
@@ -1046,11 +1209,7 @@
   background-color: #ffc107;
   color: black;
   border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75em;
   cursor: pointer;
-  margin-left: 0.5em;
   transition: background-color 0.3s ease;
 }
 
@@ -1060,26 +1219,25 @@
 
 .ws-edit-input {
   font-family: monospace;
-  font-size: 0.75em;
-  padding: 2px 6px;
+  font-size: 1em;
+  padding: 4px 6px;
   border-radius: 4px;
   border: 1px solid #aaa;
-  width: 60%;
-  flex-grow: 1;
+  flex: 1;
+  min-width: 0;
   overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .ws-remove-button {
   background: #aa2222;
   color: white;
   border: none;
-  padding: 4px 8px;
-  margin-left: 0.5em;
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 0.75em;
 }
+
 .ws-remove-button:hover {
   background: #cc0000;
 }
@@ -1088,12 +1246,11 @@
   background: #007bff;
   color: white;
   border: none;
-  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 0.75em;
 }
+
 .ws-anchor-button:hover {
   background: #0056b3;
 }
@@ -1102,17 +1259,180 @@
   background: #6a0563;
   color: white;
   border: none;
-  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 0.75em;
 }
+
 .ws-watchify-button:hover {
   background: #8b0a7c;
 }
-</style>
-`
+
+.ws-send-shortcut {
+  margin-right: 0.5em;
+  flex-shrink: 0;
+}
+
+.ws-send-shortcut kbd {
+  background: #e1e4e8;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  font-size: 1em;
+}
+
+/* Mobile specific styles */
+@media (max-width: 768px) {
+  [id^="watchscribe-widget-"] {
+    margin: 0.5em;
+    padding: 0.75em;
+    font-size: 0.9em;
+  }
+
+  [id^="watchscribe-header-"] {
+    font-size: 1.1em;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+  }
+
+  [id^="watchscribe-title-"] {
+    align-self: center;
+  }
+
+  [class^="toggle-container-"] {
+    align-self: center;
+  }
+
+  [id^="watchscribe-button-container-"] {
+    flex-direction: column;
+  }
+
+  .ws-button {
+    flex: none;
+    width: 100%;
+    padding: 10px 12px;
+  }
+
+  .watchscribe-input-container {
+    flex-direction: column !important;
+  }
+
+  [id^="watchscribe-regex-"] {
+    margin-bottom: 0.5em;
+  }
+
+  .ws-list-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5em;
+  }
+
+  .ws-code {
+    margin-right: 0;
+    margin-bottom: 0.5em;
+    flex: none;
+    font-size: 1em;
+  }
+
+  .ws-edit-input {
+    margin-bottom: 0.5em;
+    flex: none;
+  }
+
+  /* Button group for mobile */
+  .ws-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em;
+    width: 100%;
+  }
+
+  .ws-list-content > button {
+    flex: 1;
+    min-width: 60px;
+    font-size: 1em;
+    padding: 6px 4px;
+  }
+
+  .ws-send-shortcut {
+    margin-bottom: 0.25em;
+  }
+
+  /* Sending mode message responsive */
+  [id^="watchscribe-sending-mode-"] {
+    padding: 0.75em;
+    font-size: 1em;
+  }
+
+  [id^="watchscribe-sending-mode-"] kbd {
+    padding: 1px 4px;
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 480px) {
+  [id^="watchscribe-widget-"] {
+    margin: 0.25em;
+    padding: 0.5em;
+    font-size: 0.85em;
+  }
+
+  [id^="watchscribe-header-"] {
+    font-size: 1em;
+  }
+
+  .ws-button {
+    padding: 12px;
+    font-size: 0.85em;
+  }
+
+  .ws-code {
+    font-size: 0.65em;
+    padding: 3px 4px;
+  }
+
+  .ws-list-content > button {
+    font-size: 0.6em;
+    padding: 4px 2px;
+    min-width: 50px;
+  }
+
+  .toggle-label {
+    font-size: 0.8em;
+  }
+
+  .ws-description-container {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
+
+/* Dark mode support (since user mentioned using dark mode extension) */
+@media (prefers-color-scheme: dark) {
+  .ws-code {
+    background: #2d3748;
+    color: #e2e8f0;
+  }
+
+  .ws-edit-input {
+    background: #2d3748;
+    color: #e2e8f0;
+    border-color: #4a5568;
+  }
+
+  .ws-description-container {
+    background-color: #2d3748;
+    color: #a0aec0;
+    border-color: #4a5568;
+  }
+
+  .ws-list-content {
+    background: #1a202c;
+    border-color: #4a5568;
+  }
+}
+</style>`
 
     // Inject the CSS
     document.head.insertAdjacentHTML('beforeend', customCSS);
