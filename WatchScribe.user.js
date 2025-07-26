@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.15.4
+// @version      0.15.5(dev)
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -414,14 +414,49 @@
         listItem.setAttribute('data-silent', silent ? 'true' : 'false');
         listItem.setAttribute('data-regex', message.regex); // Store the command for easy access
 
-        // Inner container
+        // Description container - shows why this regex was generated
+        const descriptionContainer = document.createElement('div');
+        descriptionContainer.className = 'ws-description-container';
+        descriptionContainer.style.display = 'inline-block';
+        descriptionContainer.style.marginBottom = '0px';
+        descriptionContainer.style.padding = '4px 12px';
+        descriptionContainer.style.backgroundColor = '#f5f5f5';
+        descriptionContainer.style.border = '1px solid #ddd';
+        descriptionContainer.style.borderBottom = 'none';
+        descriptionContainer.style.borderRadius = '8px 8px 0 0';
+        descriptionContainer.style.fontSize = '12px';
+        descriptionContainer.style.color = '#666';
+        descriptionContainer.style.position = 'relative';
+        descriptionContainer.style.zIndex = '1';
+
+        // Description text (read-only)
+        const descriptionText = document.createElement('span');
+        descriptionText.className = 'ws-description-text';
+        descriptionText.textContent = message.description || 'Auto-generated regex';
+
+        descriptionContainer.appendChild(descriptionText);
+
+        // Inner container for the existing content
         const itemHTML = document.createElement('div');
         itemHTML.className = 'ws-list-content';
+        itemHTML.style.border = '1px solid #ddd';
+        itemHTML.style.borderRadius = '0 8px 8px 8px';
+        itemHTML.style.padding = '8px';
+        itemHTML.style.backgroundColor = '#fff';
+        itemHTML.style.marginTop = '0px';
 
         // Regex display
         const regexHTML = document.createElement('code');
         regexHTML.textContent = command;
         regexHTML.className = 'ws-code';
+        regexHTML.style.display = 'inline-block';
+        regexHTML.style.maxWidth = '100%';
+        regexHTML.style.overflowX = 'auto';
+        regexHTML.style.whiteSpace = 'nowrap';
+        regexHTML.style.padding = '2px 4px';
+        regexHTML.style.backgroundColor = '#f8f8f8';
+        regexHTML.style.border = '1px solid #e0e0e0';
+        regexHTML.style.borderRadius = '3px';
 
         // Editable input (hidden by default)
         const editInput = document.createElement('input');
@@ -464,7 +499,6 @@
                 const newType = newParts[1] || 'text';
                 const newSilent = newParts.length == 3;
                 const newRegex = command.split(' ', 1)[1];
-
 
                 listItem.setAttribute('data-mode', newMode);
                 if (newMode === COMMAND_TYPES.blacklist) {
@@ -516,7 +550,6 @@
         });
 
         // 👀ify/⬛ify Watchify/Blacklistify button (toggle the command mode)
-
         const WATCHIFY_TEXT = "👀ify";
         const BLACKLISTIFY_TEXT = "⬛ify";
 
@@ -536,7 +569,6 @@
         }
         watchifyButton.addEventListener('click', toggle);
 
-
         // Assemble
         itemHTML.appendChild(regexHTML);
         itemHTML.appendChild(editInput);
@@ -545,11 +577,13 @@
         itemHTML.appendChild(anchorButton); // Add anchor button
         itemHTML.appendChild(watchifyButton); // Add watchify button
         itemHTML.appendChild(removeButton); // Add last for UI spacing
+
+        // Add description container first, then the main content
+        listItem.appendChild(descriptionContainer);
         listItem.appendChild(itemHTML);
         forList.appendChild(listItem);
         return [listItem, toggle];
     }
-
     function commandFrom(mode, regex, type, silent) {
         if (type === COMMAND_SUBTYPES.number) {
             return `!!/${mode}-${type}${silent ? "-" : ""} ${regex}`;
