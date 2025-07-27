@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.2
+// @version      0.16.3
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -23,6 +23,7 @@
         "blacklist": "blacklist",
     };
 
+
     const LINK_CHAIN_INDICATOR = "​🔗​"; // The link indicator to use in the chat
 
     var commandType = COMMAND_TYPES.watch;
@@ -38,7 +39,7 @@
 
     const COMMAND_SUBTYPES = {
         url: "website",
-        text: "text",
+        text: "keyword",
         number: "number",
         username: "username"
     }
@@ -550,6 +551,10 @@
             if (editing) {
                 // Save logic here (same as original)
                 command = editInput.value;
+                if (!/!!\/(watch(-number)?|blacklist-(keyword|number|website|username))-? .+/.test(command)){
+                    alert("Invalid style of command");
+                    return;
+                }
                 listItem.setAttribute('data-command', command);
                 regexHTML.textContent = command;
                 regexHTML.style.display = 'block';
@@ -562,7 +567,9 @@
                 const newMode = newParts[0];
                 const newType = newParts[1] || 'text';
                 const newSilent = newParts.length == 3;
-                const newRegex = command.split(' ', 1)[1];
+                const newRegex = command.split(' ').slice(1).join(' ');
+
+
 
                 listItem.setAttribute('data-mode', newMode);
                 if (newMode === COMMAND_TYPES.blacklist) {
