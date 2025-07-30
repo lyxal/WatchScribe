@@ -401,8 +401,9 @@
     function generateFor(input) {
         const numberedInput = input.replace(/[()\[\]{}\- ]/g, "");
         const isAllNumbers = (txt) => [...txt].every(char => /\p{Number}/u.test(char));
+        const isValidURL = (url) => { try { new URL(url); return true; } catch (e) { return false; } };
         // Check whether the input is something that looks like a URL
-        if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input) && !isAllNumbers(input.replaceAll(".", ""))) {
+        if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input) && !isAllNumbers(input.replaceAll(".", "")) && isValidURL(input)) {
             return generateForURL(input);
         }
         // Perhaps it's a phone number?
@@ -551,7 +552,7 @@
             if (editing) {
                 // Save logic here (same as original)
                 command = editInput.value;
-                if (!/!!\/(watch(-number)?|blacklist-(keyword|number|website|username))-? .+/.test(command)){
+                if (!/!!\/(watch(-number)?|blacklist-(keyword|number|website|username))-? .+/.test(command)) {
                     alert("Invalid style of command");
                     return;
                 }
