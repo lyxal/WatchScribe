@@ -16,6 +16,8 @@ When viewing a report with FIRE, the WatchScribe widget will be at the bottom of
 
 <img width="1371" height="877" alt="image" src="https://github.com/user-attachments/assets/bc52dfba-f2bb-45d3-87eb-e70fb50c694a" />
 
+For a comprehensive list of the different types of commands WatchScribe can generate, you can go to the [Generation Heuristics](https://github.com/lyxal/WatchScribe/wiki/Generation-Heuristics) page.
+
 ### Normal Text Regexes
 
 You can select text and click "Generate Regex" to add a watch command for that text to the regex list:
