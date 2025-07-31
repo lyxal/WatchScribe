@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.4
+// @version      0.16.5
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -1559,8 +1559,43 @@
             e.stopPropagation();
         });
 
-        generateButton.addEventListener('click', () =>
-            lastGeneratedItems = generateRegexes(regexList));
+        generateButton.addEventListener('click', () => {
+            lastGeneratedItems = generateRegexes(regexList)
+            shiftMode = false;
+            generateButton.innerText = "Generate Regex"; // Reset the button text
+        });
+
+        let shiftMode = false;
+        let longPressTimer;
+
+        // Long press on the button → enable shift mode
+        generateButton.addEventListener("touchstart", () => {
+            longPressTimer = setTimeout(() => {
+                shiftMode = true;
+                caseInsensitive = true;
+                generateButton.innerText = "Generate Regex (case insensitive - `?-i:`)";
+            }, 400);
+        });
+
+        generateButton.addEventListener("touchend", () => {
+            clearTimeout(longPressTimer);
+            // Don't do anything else here – wait for the next click
+        });
+
+        // Global click listener to handle what happens next
+        document.addEventListener("click", (e) => {
+            if (!shiftMode) return; // Normal behavior
+
+            if (e.target === generateButton) {
+                // Shift click behavior will happen automatically
+                // (because caseInsensitive is true)
+            } else {
+                // User clicked somewhere else → cancel shift mode
+                shiftMode = false;
+                caseInsensitive = false;
+                generateButton.innerText = "Generate Regex";
+            }
+        });
 
         const toggleButtonsContainer = () => {
             if (buttonContainer.style.display === "none") {

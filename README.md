@@ -77,6 +77,8 @@ Hold shift when clicking the "Generate Regex" button to make plain text commands
 
 <img width="1221" height="370" alt="image" src="https://github.com/user-attachments/assets/34c49447-cf8e-431d-ae18-f061262c7cb5" />
 
+On mobile, holding down the generate regex button will toggle case insensitivity mode until next tap.
+
 ### Deleting Regexes
 
 You can remove individual regexes from the list by clicking the red delete button:
