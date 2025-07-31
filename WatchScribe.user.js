@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.5
+// @version      0.16.6
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -175,6 +175,7 @@
         let regexes = [];
         // Replace spaces with non-word gaps
         let words = text.split(/ +/);
+        let symbolWords = text.split(/\W+/);
         let defaultRegex = "";
 
         let makeSafe = (str) => str.replace(/([()[{*+.$^\\|?\]])/g, '\\$1');
@@ -190,12 +191,11 @@
         }
 
         let symbolConsumingRegex = "";
-        if (words.length > 1) {
-            for (let word of words.slice(1)) {
-                let symbolless = word.replace(/\W+/, ""); // Remove all non-word characters
-                if (symbolless.length !== 0) {
+        if (symbolWords.length > 1) {
+            for (let word of symbolWords.slice(1)) {
+                if (word.length !== 0) {
                     // Only add the symbol consuming regex if there are characters left after removing non-word characters
-                    symbolConsumingRegex += `[\\W_]*+${makeSafe(symbolless.toLowerCase())}`;
+                    symbolConsumingRegex += `[\\W_]*+${makeSafe(word.toLowerCase())}`;
                 }
             }
             symbolConsumingRegex = `${makeSafe(words[0].toLowerCase())}${symbolConsumingRegex}`;
@@ -682,7 +682,7 @@
             // 1. A number (e.g. "12345")
             // 2. A hash-like string _if_ the domain is short enough
 
-            return /^[0-9]+$/.test(linkParts[1]) || (linkParts[1].length <= 10 && /[a-zA-Z0-9_-]{4,15}/.test(linkParts[1]));
+            return /^[0-9]+$/.test(linkParts[1]) || (linkParts[1].length <= 15 && /[a-zA-Z0-9_-]{4,15}/.test(linkParts[1]));
         }
 
         if (linkParts.length > 2) {
