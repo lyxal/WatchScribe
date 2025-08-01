@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.8[dev]
+// @version      0.16.8
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -42,6 +42,20 @@
         username: "username"
     }
 
+    class WatchedURL {
+        /**
+         * Represents a watched URL.
+         * @param {string} SLD - The second-level domain (e.g. "example" in "example.com").
+         * @param {string} TLD - The top-level domain (e.g. "com" in "example.com").
+         * @param {string} fullURL - The full URL (e.g. "https://example.com").
+         */
+        constructor(SLD, TLD, fullURL) {
+            this.SLD = SLD;
+            this.TLD = TLD;
+            this.fullURL = fullURL;
+        }
+    }
+    /** @type {WatchedURL[]} */
     var watchedURLs = [];
 
     class GeneratedCommand {
@@ -117,7 +131,6 @@
 
         // Create a URL object and extract the hostname
         const urlObj = new URL(usedURL);
-        watchedURLs.push(urlObj.hostname); // Add the hostname to the watched URLs
         let host = urlObj.hostname;
 
         // Strip the www. if it's there at the start of the URL.
@@ -127,6 +140,7 @@
         }
 
         let [hostname, ...tld] = host.split('.');
+
 
         // tld will now be an array of the TLD parts, e.g. ["com", "uk", "co"]
         // Subsequent parts of the TLD after the first need to be joined with `(?:\\.${tld})`
@@ -163,6 +177,8 @@
         // Push the hostname without the TLD, using a negative lookahead
         regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldFull})`, COMMAND_SUBTYPES.url, "Hostname without TLD (Full)"));
         regexes.push(new GeneratedCommand(`${hostname}(?!\\.${tldDivided})`, COMMAND_SUBTYPES.url, "Hostname without TLD (Divided)"));
+
+        watchedURLs.push(new WatchedURL(hostname, `\\.${tldFull}`, `${hostname}\\.${tldFull}`));
 
         return regexes;
     }
@@ -215,6 +231,14 @@
             regexes.push(new GeneratedCommand(defaultRegex, COMMAND_SUBTYPES.text, description));
             if (symbolConsumingRegex !== defaultRegex) {
                 regexes.push(new GeneratedCommand(symbolConsumingRegex, COMMAND_SUBTYPES.text, "Symbol Consuming Text Regex"));
+            }
+        }
+
+        for (let regex of regexes.slice()) {
+            let r = "\\b" + regex.regex.replace(/\[\\W_]\*\+/g, "[\\W_]*") + "\\b";
+            let matchedURLs = watchedURLs.filter(url => new RegExp(r).test(url.SLD));
+            for (let matchedURL of matchedURLs) {
+                regexes.push(new GeneratedCommand(`${regex.regex}(?!${matchedURL.TLD}(?<=${matchedURL.fullURL}))`, COMMAND_SUBTYPES.text, description));
             }
         }
 
@@ -794,8 +818,8 @@
 
             // Generate a lookbehind variant if any link text regex matches the SLD
 
-            let TLD = "." + new URL(url).hostname.split('.').slice(1);
-            TLD = TLD.join('.').replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
+            let TLD = new URL(url).hostname.split('.').slice(1);
+            TLD = "\\." + TLD.join('.').replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
 
             for (let regex of linkTextRegexes) {
                 let r = "\\b" + regex.regex.replace(/\[\\W_]\*\+/g, "[\\W_]*") + "\\b";
