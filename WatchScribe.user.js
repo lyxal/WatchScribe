@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.7
+// @version      0.16.8[dev]
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -35,14 +35,14 @@
 
     const DONT_ACTUALLY_SEND_THIS_IS_DEBUG_MODE_FLAG = false;
 
-    const SCRIPT_VERSION = "0.15.0";
-
     const COMMAND_SUBTYPES = {
         url: "website",
         text: "keyword",
         number: "number",
         username: "username"
     }
+
+    var watchedURLs = [];
 
     class GeneratedCommand {
         /**
@@ -117,6 +117,7 @@
 
         // Create a URL object and extract the hostname
         const urlObj = new URL(usedURL);
+        watchedURLs.push(urlObj.hostname); // Add the hostname to the watched URLs
         let host = urlObj.hostname;
 
         // Strip the www. if it's there at the start of the URL.
@@ -761,7 +762,8 @@
         if (selectedElement && selectedElement.tagName === 'SPAN' && selectedElement.classList.contains('watchscribe-link')) {
             const url = selectedElement.getAttribute("data-href");
             const text = selectedElement.innerText;
-            const textRegexes = generateForText(text, "Displayed Link Text");
+            const linkTextRegexes = generateForText(text, "Displayed Link Text");
+            const textRegexes = linkTextRegexes.slice(); // Copy the link text regexes to modify them
             textRegexes.push(...generateForText(selectedText, "Selected Link Text")); // Add the selected text regexes as well
 
             const linkComponents = url.split("/");
@@ -787,24 +789,21 @@
             }
 
             // Regexes for the URL
-            regexes = regexes.concat(generateForURL(url));
+            const urlRegexes = generateForURL(url);
+            regexes = regexes.concat(urlRegexes);
 
-            // A special check: if the text, lowercased, without spaces, matches the URL,
-            // add a regex that watches the text with a negative lookahead for the URL tld
+            // Generate a lookbehind variant if any link text regex matches the SLD
 
-            const processedText = text.toLowerCase().replaceAll(" ", "");
-            const hostname = new URL(url).hostname
+            let TLD = "." + new URL(url).hostname.split('.').slice(1);
+            TLD = TLD.join('.').replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
 
-            // Remove the www. if it's there
-            const wwwless = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
-            const processedHostname = wwwless.toLowerCase().replaceAll(" ", "");
-            const tld = new URL(url).hostname.split(".").pop().toLowerCase();
-
-            if (processedHostname.match(processedText)) {
-                for (let textRegex of textRegexes) {
-                    regexes.push(new GeneratedCommand(`${textRegex}(?!\\.${tld})`, COMMAND_SUBTYPES.url, "Link Text with Negative Lookahead for TLD"));
+            for (let regex of linkTextRegexes) {
+                let r = "\\b" + regex.regex.replace(/\[\\W_]\*\+/g, "[\\W_]*") + "\\b";
+                if (new RegExp(r).test(url)) {
+                    regexes.push(new GeneratedCommand(`${regex.regex}(?!${TLD}(?<=${urlRegexes[0].regex}))`, COMMAND_SUBTYPES.url, "Link Text with Lookbehind for SLD"));
                 }
             }
+
         } else if (selectedElement && selectedElement.tagName === 'A' && selectedElement.classList.contains('fire-user-name')) {
             // If the selected element is a link to a user, generate a regex for the username
             const username = selectedElement.innerText.trim();
@@ -1461,7 +1460,9 @@
         reportedPostDiv.insertAdjacentHTML('afterend', widgetHTML.replace(/%/g, widgetID));
         commandType = COMMAND_TYPES.watch; // Reset the command type to watch
         silent = GM_getValue('silent', true); // Get the silent mode from storage
+
         let lastGeneratedItems = [];
+        watchedURLs = [];
 
         // Get the various components of the widget
         const generateButton = document.getElementById(`watchscribe-button-${widgetID}`);
