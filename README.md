@@ -112,3 +112,7 @@ Additionally:
 * <kbd>]</kbd> Enable/Disable keyboard shortcut regex sending
 * <kbd>`</kbd> Toggle the last generated regex(es) between watch and blacklist mode
 * <kbd>c</kbd> Clear the regex list
+
+## Positive Lookbehinds
+
+If you select text from a report or enter text in the input box that matches the hostname of an already generated URL, the system will create a variant of the text regex that includes a positive lookbehind for that URL.
