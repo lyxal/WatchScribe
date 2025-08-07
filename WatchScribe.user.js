@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.17.0
+// @version      0.17.1
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -595,7 +595,8 @@
 
         // Send button
         const sendButton = createButton("Send to Chat", 'ws-send-button', async () => {
-            let messageId = await sendMessage(command);
+            const commandToSend = commandFrom(listItem.getAttribute('data-mode'), listItem.getAttribute('data-regex'), listItem.getAttribute('data-type'), listItem.getAttribute('data-silent') === 'true');
+            let messageId = await sendMessage(commandToSend);
             sentMessages[messageId] = new SentMessage(message, false);
             sendButton.style.display = "none";
         }, 'background-color: #28a745; color: white; flex: 1; min-width: 50px;');
@@ -2005,8 +2006,6 @@
         const RESEND_REGEX = /A normalized version, <code>\{\{.+\}\}<\/code>, of that pattern is already on the number watchlist and the pattern you provided is not an exact match to an existing entry on the number watchlist\./;
 
         const EXISTING_PATTERN_REGEX = /Matched by <code>(.+)<\/code> on/;
-
-        console.log(parentMessage, command, message, RESEND_REGEX.test(message.content));
 
         if (command.mode === COMMAND_TYPES.blacklist && command.originalType === COMMAND_SUBTYPES.number) {
             if (RESEND_REGEX.test(message.content)) {
