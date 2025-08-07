@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.16.8
+// @version      0.17.0
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -35,12 +35,31 @@
 
     const DONT_ACTUALLY_SEND_THIS_IS_DEBUG_MODE_FLAG = false;
 
+    class SentMessage {
+        // A generated command + has this been edit-actedupon yet
+        /**
+         * 
+         * @param {GeneratedCommand} command 
+         * @param {boolean} edited 
+         */
+        constructor(command, edited = false) {
+            this.command = command;
+            this.edited = edited;
+        }
+    }
+
+    /** @type {Object<string, SentMessage>} */
+    var sentMessages = {};
+
     const COMMAND_SUBTYPES = {
         url: "website",
         text: "keyword",
         number: "number",
         username: "username"
     }
+
+    const isValidURL = (url) => { try { new URL(url); return true; } catch (e) { return false; } };
+
 
     class WatchedURL {
         /**
@@ -68,19 +87,21 @@
             this.regex = regex;
             this.originalType = originalType; // "url", "text", or "number"
             this.description = description;
+            this.mode = commandType;
         }
     }
 
     /**
      * Send a message to chat
      * @param {string} message The message to send
-     * @returns void
+     * @returns {Promise<number>} The ID of the sent message
      */
     async function sendMessage(message) {
 
         if (DONT_ACTUALLY_SEND_THIS_IS_DEBUG_MODE_FLAG) {
             alert(`Debug mode is enabled. Not sending message: ${message}`);
-            return;
+            // Return a randomly generated message ID
+            return Math.floor(Math.random() * 1000000);
         }
 
         // Retrieve the fkey element
@@ -105,11 +126,15 @@
             body: params
         });
 
+        const response = await call.json();
+
         if (call.status !== 200 || !call.ok) {
             toastr.error('Failed to send message to chat.');
         } else {
             toastr.success('Successfully sent message to chat.');
         }
+
+        return response.id;
     }
 
     /**
@@ -130,6 +155,9 @@
         }
 
         // Create a URL object and extract the hostname
+        if (!isValidURL(usedURL)) {
+            return generateForText(usedURL.replace(/https:\/\/(www\.)?/, ""), "Invalid URL, so try URL as text");
+        }
         const urlObj = new URL(usedURL);
         let host = urlObj.hostname;
 
@@ -215,9 +243,9 @@
                     symbolConsumingRegex += `[\\W_]*+${makeSafe(word.toLowerCase())}`;
                 }
             }
-            symbolConsumingRegex = `${makeSafe(words[0].toLowerCase())}${symbolConsumingRegex}`;
+            symbolConsumingRegex = `${makeSafe(symbolWords[0].toLowerCase())}${symbolConsumingRegex}`;
         } else {
-            symbolConsumingRegex = makeSafe(words[0].toLowerCase()); // Remove all non-word characters
+            symbolConsumingRegex = makeSafe(symbolWords[0].toLowerCase()); // Remove all non-word characters
         }
 
 
@@ -236,9 +264,10 @@
 
         for (let regex of regexes.slice()) {
             let r = "\\b" + regex.regex.replace(/\[\\W_]\*\+/g, "[\\W_]*") + "\\b";
+            if (!r.includes("[\\W_]")) { continue; }
             let matchedURLs = watchedURLs.filter(url => new RegExp(r).test(url.SLD));
             for (let matchedURL of matchedURLs) {
-                regexes.push(new GeneratedCommand(`${regex.regex}(?!${matchedURL.TLD}(?<=${matchedURL.fullURL}))`, COMMAND_SUBTYPES.text, description));
+                regexes.push(new GeneratedCommand(`${regex.regex}(?!${matchedURL.TLD}(?<=${matchedURL.fullURL}))`, COMMAND_SUBTYPES.text, "Text Matching Hostname Where Text Needs to be Broken Up"));
             }
         }
 
@@ -426,7 +455,6 @@
     function generateFor(input) {
         const numberedInput = input.replace(/[()\[\]{}\- ]/g, "");
         const isAllNumbers = (txt) => [...txt].every(char => /\p{Number}/u.test(char));
-        const isValidURL = (url) => { try { new URL(url); return true; } catch (e) { return false; } };
         // Check whether the input is something that looks like a URL
         if (/^[a-zA-Z0-9_\-]*(\.[a-zA-Z0-9_\-]*)+$/.test(input) && !isAllNumbers(input.replaceAll(".", "")) && isValidURL(input)) {
             return generateForURL(input);
@@ -566,8 +594,9 @@
         };
 
         // Send button
-        const sendButton = createButton("Send to Chat", 'ws-send-button', () => {
-            sendMessage(command);
+        const sendButton = createButton("Send to Chat", 'ws-send-button', async () => {
+            let messageId = await sendMessage(command);
+            sentMessages[messageId] = new SentMessage(message, false);
             sendButton.style.display = "none";
         }, 'background-color: #28a745; color: white; flex: 1; min-width: 50px;');
 
@@ -693,6 +722,23 @@
         }
     }
 
+    function commandFromListItem(listItem) {
+        const mode = listItem.getAttribute('data-mode') || COMMAND_TYPES.watch;
+        const regex = listItem.getAttribute('data-regex');
+        const type = listItem.getAttribute('data-type');
+        const silent = listItem.getAttribute('data-silent') === 'true';
+
+        return commandFrom(mode, regex, type, silent);
+    }
+
+    function commandObjectFromListItem(listItem) {
+        const mode = listItem.getAttribute('data-mode') || COMMAND_TYPES.watch;
+        const regex = listItem.getAttribute('data-regex');
+        const type = listItem.getAttribute('data-type');
+        const silent = listItem.getAttribute('data-silent') === 'true';
+
+        return new GeneratedCommand(mode, regex, type, silent);
+    }
 
     /**
      * @param {string[]} linkParts
@@ -815,16 +861,17 @@
             // Regexes for the URL
             const urlRegexes = generateForURL(url);
             regexes = regexes.concat(urlRegexes);
-
             // Generate a lookbehind variant if any link text regex matches the SLD
 
-            let TLD = new URL(url).hostname.split('.').slice(1);
-            TLD = "\\." + TLD.join('.').replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
+            if (isValidURL(url)) {
+                let TLD = new URL(url).hostname.split('.').slice(1);
+                TLD = "\\." + TLD.join('.').replace(/([()[{*+.$^\\|?])/g, '\\$1'); // Escape special regex characters
 
-            for (let regex of linkTextRegexes) {
-                let r = "\\b" + regex.regex.replace(/\[\\W_]\*\+/g, "[\\W_]*") + "\\b";
-                if (new RegExp(r).test(url)) {
-                    regexes.push(new GeneratedCommand(`${regex.regex}(?!${TLD}(?<=${urlRegexes[0].regex}))`, COMMAND_SUBTYPES.url, "Link Text with Lookbehind for SLD"));
+                for (let regex of linkTextRegexes) {
+                    let r = "\\b" + regex.regex.replace(/\[\\W_]\*\+/g, "[\\W_]*") + "\\b";
+                    if (new RegExp(r).test(url)) {
+                        regexes.push(new GeneratedCommand(`${regex.regex}(?!${TLD}(?<=${urlRegexes[0].regex}))`, COMMAND_SUBTYPES.url, "Link Text with Lookbehind for SLD"));
+                    }
                 }
             }
 
@@ -987,6 +1034,8 @@
     ">
       v<span id="watchscribe-version-number-%">?</span>
     </a>
+
+    <button id="watchscribe-debug-sent-messages-%">Debug Sent Messages</button>
 </div>
 `;
 
@@ -1505,6 +1554,14 @@
         const buttonContainer = document.getElementById(`watchscribe-button-container-${widgetID}`);
         const sendingMode = document.getElementById(`watchscribe-sending-mode-${widgetID}`);
         const versionNumber = document.getElementById(`watchscribe-version-number-${widgetID}`);
+        const debugButton = document.getElementById(`watchscribe-debug-sent-messages-${widgetID}`);
+
+        debugButton.addEventListener('click', () => {
+            console.log("Sent Messages Debug Info:");
+            for (const [messageId, command] of Object.entries(sentMessages)) {
+                console.log(`Message ID: ${messageId}`, command);
+            }
+        });
 
 
         toggleBtn.parentElement.addEventListener('click', () => {
@@ -1547,8 +1604,16 @@
 
         // A listener for the send all commands button
         sendButton.addEventListener('click', () => {
-            let messages = Array.from(regexList.querySelectorAll('code')).map(el => el.textContent);
-            messages.forEach(message => sendMessage(message));
+            let messages = document.querySelectorAll('.ws-list-item');
+
+            messages.forEach((item) => {
+                let commandObject = commandObjectFromListItem(item);
+                let command = commandFromListItem(item);
+                sendMessage(command).then((messageId) => {
+                    sentMessages[messageId] = new SentMessage(commandObject, false);
+                    item.querySelector('.ws-send-button').style.display = "none"; // Hide the send button
+                });
+            });
         });
 
         const addFromInputField = () => {
@@ -1577,7 +1642,10 @@
                 alert("No message entered!");
                 return;
             }
-            sendMessage(`!!/${commandType}${commandType === COMMAND_TYPES.blacklist ? "-text" : ""}${silent ? "-" : ""} ${message}`);
+            const commandObj = new GeneratedCommand(message, COMMAND_SUBTYPES.text, "Sent from input field");
+            sendMessage(commandFrom(commandType, commandObj.regex, commandObj.subtype, silent)).then((messageId) => {
+                sentMessages[messageId] = new SentMessage(commandObj, false);
+            });
         });
 
         regexInput.addEventListener('keydown', (e) => {
@@ -1659,18 +1727,28 @@
                     if (index < regexList.children.length) {
                         const item = regexList.children[index];
                         if (item && item.querySelector('.ws-code')) {
-                            const command = item.querySelector('.ws-code').textContent;
-                            sendMessage(command);
-                            item.querySelector('.ws-send-shortcut').remove(); // Remove the shortcut after sending
-                            item.querySelector('.ws-send-button').style.display = "none"; // Hide the send button
+                            const command = commandFromListItem(item);
+                            const commandObject = commandObjectFromListItem(item);
+                            sendMessage(command).then((id) => {
+                                sentMessages[id] = new SentMessage(commandObject, false);
+                                item.querySelector('.ws-send-shortcut').remove(); // Remove the shortcut after sending
+                                item.querySelector('.ws-send-button').style.display = "none"; // Hide the send button
+                            });
                         } else {
                             console.warn(`No regex found for key: ${e.key}`);
                         }
                     }
                 } else if (e.key === 'Tab') {
                     // Send all regexes when the user presses Tab
-                    let messages = Array.from(regexList.querySelectorAll('code')).map(el => el.textContent);
-                    messages.forEach(message => sendMessage(message));
+                    let messages = document.querySelectorAll('.ws-lis-item');
+
+                    messages.forEach((item) => {
+                        let commandObject = commandObjectFromListItem(item);
+                        let command = commandFromListItem(item);
+                        sendMessage(command).then((messageId) => {
+                            sentMessages[messageId] = new SentMessage(commandObject, false);
+                        });
+                    });
                     hideSendShortcuts(regexList); // Hide the send shortcuts after sending
                     regexSendingOverride = false; // Reset the override flag
                     // Hide all send buttons
@@ -1683,11 +1761,13 @@
                     if (regexList.children.length > 0) {
                         const firstItem = regexList.children[0];
                         if (firstItem && firstItem.querySelector('.ws-code')) {
-                            const command = firstItem.querySelector('.ws-code').textContent;
-                            sendMessage(command);
-                            firstItem.remove(); // Remove the sent regex from the list
-                            hideSendShortcuts(regexList);
-                            showSendShortcuts(regexList); // Update the send shortcuts
+                            const command = commandFromListItem(firstItem);
+                            sendMessage(command).then((id) => {
+                                sentMessages[id] = new SentMessage(commandObjectFromListItem(firstItem), false);
+                                firstItem.remove(); // Remove the sent regex from the list
+                                hideSendShortcuts(regexList);
+                                showSendShortcuts(regexList); // Update the send shortcuts
+                            });
 
                         } else {
                             alert("No regex found to send.");
@@ -1887,5 +1967,64 @@
             hideTooltip();
         }
     });
+
+    $(document).ready(function () {
+        CHAT.addEventHandlerHook(chatMessageRecieved);
+    });
+
+    const REPLY_EVENT_TYPE = 18;
+    const SMOKEY_ID = 120914;
+
+    function chatMessageRecieved(message) {
+        const eventType = message.event_type;
+        const userId = message.user_id;
+
+        if (!(eventType === REPLY_EVENT_TYPE && userId === SMOKEY_ID)) {
+            return false;
+        }
+
+        const parentID = message.parent_id;
+        if (!parentID) {
+            return false; // No parent ID, nothing to do
+        }
+
+        // Return early if the parent message is not found in
+        // the sentMessages map
+
+        const parentMessage = sentMessages[parentID];
+        if (!parentMessage) {
+            return false; // Parent message not found, nothing to do
+        }
+
+        if (parentMessage.edited) {
+            return false;
+        }
+
+        const command = parentMessage.command;
+
+        const RESEND_REGEX = /A normalized version, <code>\{\{.+\}\}<\/code>, of that pattern is already on the number watchlist and the pattern you provided is not an exact match to an existing entry on the number watchlist\./;
+
+        const EXISTING_PATTERN_REGEX = /Matched by <code>(.+)<\/code> on/;
+
+        console.log(parentMessage, command, message, RESEND_REGEX.test(message.content));
+
+        if (command.mode === COMMAND_TYPES.blacklist && command.originalType === COMMAND_SUBTYPES.number) {
+            if (RESEND_REGEX.test(message.content)) {
+                // Perform the blacklist again, but with the already watched number
+                const pattern = EXISTING_PATTERN_REGEX.exec(message.content);
+                console.log("pattern", pattern);
+                if (!pattern) {
+                    return false;
+                }
+                const watchedNumber = pattern[1];
+                sendMessage(commandFrom(COMMAND_TYPES.blacklist, watchedNumber, COMMAND_SUBTYPES.number, silent)).then((messageId) => {
+                    sentMessages[messageId] = new SentMessage(new GeneratedCommand(watchedNumber, COMMAND_SUBTYPES.number, "Re-sent from existing watch"), false);
+                    sentMessages[parentID].edited = true; // Mark the parent message as edited
+                });
+            }
+        }
+    }
+
+
 
 })();
