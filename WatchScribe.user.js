@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WatchScribe
-// @version      0.17.1
+// @version      0.17.2
 // @description  A userscript to help generate regexes for SmokeDetector's watchlist feature. To be used in conjunction with FIRE.
 // @author       lyxal
 // @homepage     https://github.com/lyxal/WatchScribe
@@ -1035,8 +1035,6 @@
     ">
       v<span id="watchscribe-version-number-%">?</span>
     </a>
-
-    <button id="watchscribe-debug-sent-messages-%">Debug Sent Messages</button>
 </div>
 `;
 
@@ -1555,15 +1553,6 @@
         const buttonContainer = document.getElementById(`watchscribe-button-container-${widgetID}`);
         const sendingMode = document.getElementById(`watchscribe-sending-mode-${widgetID}`);
         const versionNumber = document.getElementById(`watchscribe-version-number-${widgetID}`);
-        const debugButton = document.getElementById(`watchscribe-debug-sent-messages-${widgetID}`);
-
-        debugButton.addEventListener('click', () => {
-            console.log("Sent Messages Debug Info:");
-            for (const [messageId, command] of Object.entries(sentMessages)) {
-                console.log(`Message ID: ${messageId}`, command);
-            }
-        });
-
 
         toggleBtn.parentElement.addEventListener('click', () => {
             commandType = commandType === COMMAND_TYPES.watch ? COMMAND_TYPES.blacklist : COMMAND_TYPES.watch;
